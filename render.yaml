@@ -1,0 +1,26 @@
+# Render service definition for the backend service.
+#
+# Instructions:
+# - Connect your GitHub repo to Render and place this file at the repository root.
+# - Render will detect this file and create the service described below when you
+#   choose to import from GitHub, or you can create the service manually and
+#   use the values below as guidance.
+
+services:
+  - type: web
+    name: resumeai-backend
+    env: node
+    plan: free
+    branch: main
+    root: backend
+    buildCommand: npm install
+    startCommand: npm run start
+    # Keep env vars empty here so you can set secrets in the Render dashboard.
+    # The following env var keys are expected by the app — set them in Render:
+    envVars:
+      - key: DATABASE_URL
+      - key: GEMINI_API_KEY
+      - key: CAMPAY_APP_USER
+      - key: CAMPAY_APP_PASSWORD
+      - key: FRONTEND_URL
+      - key: NODE_ENV
