@@ -17,13 +17,19 @@ const app = express();
 const CAMPAY_BASE_URL = process.env.CAMPAY_BASE_URL || 'https://demo.campay.net/api'; 
 const CAMPAY_APP_USER = process.env.CAMPAY_APP_USER;
 const CAMPAY_APP_PASSWORD = process.env.CAMPAY_APP_PASSWORD;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
-const FRONTEND_URL = process.env.FRONTEND_URL; // Optional: For strict CORS
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+// Clean up FRONTEND_URL: remove trailing slashes and extra text
+let FRONTEND_URL = process.env.FRONTEND_URL || '*';
+if (FRONTEND_URL && FRONTEND_URL !== '*') {
+  FRONTEND_URL = FRONTEND_URL.trim().replace(/\/$/, '').split(' ')[0]; // Remove trailing slash and extra text
+}
 
 // Enable CORS
-// In production, you might want to restrict this to your Vercel URL
+// In production, restrict to your Vercel URL; in development, allow localhost:5173
+const corsOrigin = FRONTEND_URL === '*' ? '*' : FRONTEND_URL;
 app.use(cors({
-  origin: FRONTEND_URL || '*', // Allow specific origin if set, otherwise allow all
+  origin: corsOrigin,
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
