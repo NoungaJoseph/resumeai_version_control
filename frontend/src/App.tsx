@@ -1,9 +1,11 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { SparklesIcon, PlusIcon, TrashIcon, DownloadIcon } from './components/Icons';
 import ResumePreview from './components/ResumePreview';
 import { generateProfessionalResume, generateCoverLetter } from './services/geminiService';
 import { ResumeData, AIResumeOutput, AICoverLetterOutput } from './types';
 import { PaymentModal } from './components/PaymentModal';
+import { LandingPage } from './components/LandingPage';
 
 // Utility for ID generation
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -178,6 +180,15 @@ const SAMPLE_DATA: ResumeData = {
 };
 
 export default function App() {
+  // State for Landing Page vs App
+  const [showLanding, setShowLanding] = useState(() => {
+    if (typeof window !== 'undefined') {
+      // If user has data, skip landing? Optional. For now, let's default to landing unless they clicked start.
+      return localStorage.getItem('hasStarted') !== 'true';
+    }
+    return true;
+  });
+
   // 1. Initialize state from localStorage if available
   const [data, setData] = useState<ResumeData>(() => {
     if (typeof window !== 'undefined') {
@@ -229,6 +240,10 @@ export default function App() {
     if (aiCoverLetter) localStorage.setItem('aiCoverLetter', JSON.stringify(aiCoverLetter));
   }, [aiCoverLetter]);
 
+  const handleStartApp = () => {
+    setShowLanding(false);
+    localStorage.setItem('hasStarted', 'true');
+  };
 
   const resetData = () => {
      if (confirm("This will clear your current data. Are you sure?")) {
@@ -260,6 +275,7 @@ export default function App() {
       const type = data.mode === 'cover-letter' ? 'Cover_Letter' : data.mode === 'cv' ? 'CV' : 'Resume';
       document.title = `${data.fullName.replace(' ', '_')}_${type}`;
     }
+    // Force active tab to preview for rendering
     setActiveTab('preview');
     setTimeout(() => {
       window.print();
@@ -416,20 +432,26 @@ export default function App() {
     });
   };
 
+  // --- RENDER: LANDING PAGE ---
+  if (showLanding) {
+    return <LandingPage onStart={handleStartApp} />;
+  }
+
+  // --- RENDER: MAIN APP ---
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 print:bg-white print:h-auto print:overflow-visible">
       {/* Navbar - Hidden during print */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 print:hidden">
+      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 print:hidden shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={resetData}>
+          <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={resetData}>
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
               <SparklesIcon className="w-5 h-5" />
             </div>
             <span className="font-bold text-xl text-slate-800 hidden sm:block">ResumeAI</span>
           </div>
           
-          {/* Mode Switcher */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-lg mx-4 overflow-x-auto">
+          {/* Mode Switcher - Horizontal Scroll on Mobile */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-lg mx-2 sm:mx-4 overflow-x-auto max-w-[180px] sm:max-w-none no-scrollbar">
              <button
                 onClick={() => switchMode('resume')}
                 className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${data.mode === 'resume' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
@@ -440,7 +462,7 @@ export default function App() {
                 onClick={() => switchMode('cv')}
                 className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap ${data.mode === 'cv' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                Professional CV
+                CV
               </button>
               <button
                 onClick={() => switchMode('cover-letter')}
@@ -450,32 +472,32 @@ export default function App() {
               </button>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <button 
               onClick={loadSampleData}
-              className="text-xs font-medium text-blue-600 hover:text-blue-800 underline mr-2 hidden sm:block"
+              className="text-xs font-medium text-blue-600 hover:text-blue-800 underline mr-2 hidden md:block"
             >
               Sample
             </button>
 
-            <div className="flex bg-slate-100 p-1 rounded-lg">
+            <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
               <button
                 onClick={() => setActiveTab('edit')}
                 className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'edit' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                Editor
+                Edit
               </button>
               <button
                 onClick={() => setActiveTab('preview')}
                 className={`px-3 sm:px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'preview' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                Preview
+                View
               </button>
             </div>
             
             <button
               onClick={handleDownloadClick}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer shrink-0
                 ${data.isPaid 
                     ? 'bg-green-600 text-white hover:bg-green-700' 
                     : 'bg-slate-900 text-white hover:bg-slate-800'
@@ -483,18 +505,13 @@ export default function App() {
               title={data.isPaid ? "Download PDF" : "Unlock Download"}
             >
               {data.isPaid ? (
-                  <>
-                    <DownloadIcon className="w-4 h-4" />
-                    <span className="hidden sm:inline">Download</span>
-                  </>
+                  <DownloadIcon className="w-4 h-4" />
               ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                      <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
-                    </svg>
-                    <span className="hidden sm:inline">Unlock (10 FCFA)</span>
-                  </>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+                  </svg>
               )}
+              <span className="hidden sm:inline">{data.isPaid ? 'Download' : 'Unlock (10 FCFA)'}</span>
             </button>
           </div>
         </div>
@@ -509,26 +526,26 @@ export default function App() {
       />
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:px-6 lg:px-8 py-8 flex gap-8 items-start print:p-0 print:m-0 print:max-w-none print:block">
+      <main className="flex-1 w-full max-w-7xl mx-auto p-0 sm:p-4 sm:px-6 lg:px-8 py-4 sm:py-8 flex flex-col lg:flex-row gap-8 items-start print:p-0 print:m-0 print:max-w-none print:block">
         
-        {/* Editor Panel - Hidden during print */}
-        <div className={`flex-1 w-full transition-opacity duration-300 ${activeTab === 'edit' ? 'block opacity-100' : 'hidden lg:block lg:w-1/3 lg:flex-none'} print:hidden`}>
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-6 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+        {/* Editor Panel - Responsive Show/Hide */}
+        <div className={`flex-1 w-full transition-all duration-300 ${activeTab === 'edit' ? 'block opacity-100' : 'hidden lg:block lg:w-1/3 lg:flex-none'} print:hidden`}>
+          <div className="bg-white sm:rounded-xl shadow-sm border-y sm:border border-slate-200 overflow-hidden">
+            <div className="p-4 sm:p-6 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">
-                  {data.mode === 'cv' ? 'Curriculum Vitae Details' : data.mode === 'cover-letter' ? 'Cover Letter Details' : 'Resume Details'}
+                  {data.mode === 'cv' ? 'CV Details' : data.mode === 'cover-letter' ? 'Letter Details' : 'Resume Details'}
                 </h2>
                 <p className="text-sm text-slate-500">
-                  {data.mode === 'cover-letter' ? 'Tailor a persuasive letter for your application.' : 'Draft your professional profile.'}
+                  {data.mode === 'cover-letter' ? 'Tailor a persuasive letter.' : 'Draft your professional profile.'}
                 </p>
               </div>
               <button onClick={loadSampleData} className="sm:hidden text-xs text-blue-600 font-medium">
-                Load Sample
+                Sample
               </button>
             </div>
 
-            <div className="p-6 space-y-8 h-[calc(100vh-250px)] overflow-y-auto">
+            <div className="p-4 sm:p-6 space-y-8 h-[calc(100vh-180px)] overflow-y-auto pb-20">
               
               {/* COVER LETTER SPECIFIC FIELDS */}
               {data.mode === 'cover-letter' ? (
@@ -1146,7 +1163,7 @@ export default function App() {
               )}
             </div>
             
-            <div className="p-6 border-t border-slate-200 bg-slate-50">
+            <div className="p-4 sm:p-6 border-t border-slate-200 bg-slate-50 sticky bottom-0 z-10">
               <button
                 onClick={handleAiGenerate}
                 disabled={isGenerating || !data.targetRole}
@@ -1160,7 +1177,7 @@ export default function App() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    {data.mode === 'cover-letter' ? 'Writing Cover Letter...' : 'Polishing with AI...'}
+                    {data.mode === 'cover-letter' ? 'Writing...' : 'Polishing with AI...'}
                   </>
                 ) : (
                   <>
@@ -1173,16 +1190,25 @@ export default function App() {
           </div>
         </div>
 
-        {/* Preview Panel - FORCE BLOCK during print to ensure it's visible even if tab is hidden */}
-        <div className={`flex-1 flex justify-center ${activeTab === 'preview' ? 'block' : 'hidden lg:block'} print:block print:w-full print:static`}>
-          <div className="sticky top-24 w-full max-w-[210mm] print:static print:max-w-none print:w-full">
+        {/* Preview Panel - Responsive Mobile Scaling */}
+        <div className={`flex-1 flex justify-center transition-opacity duration-300 ${activeTab === 'preview' ? 'block opacity-100' : 'hidden lg:block lg:w-2/3'} print:block print:w-full print:static`}>
+          <div className="sticky top-24 w-full print:static print:max-w-none print:w-full flex flex-col items-center">
             {activeTab === 'preview' && !aiOutput && !aiCoverLetter && !isGenerating && (
-               <div className="mb-4 p-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm print:hidden">
+               <div className="mb-4 p-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm print:hidden w-full max-w-lg">
                  The preview currently shows raw data. Click "Generate" to let AI rewrite it professionally.
                </div>
             )}
-            {/* Resume Preview Component */}
-            <ResumePreview ref={printRef} raw={data} aiContent={aiOutput} aiCoverLetter={aiCoverLetter} />
+            
+            {/* 
+               MOBILE SCALING CONTAINER 
+               This wrapper forces the 210mm width (approx 800px) resume to fit on small screens 
+               using CSS transform scale.
+            */}
+            <div className="w-full overflow-hidden flex justify-center print:overflow-visible">
+               <div className="transform origin-top scale-[0.45] sm:scale-[0.65] md:scale-[0.85] xl:scale-100 print:transform-none">
+                  <ResumePreview ref={printRef} raw={data} aiContent={aiOutput} aiCoverLetter={aiCoverLetter} />
+               </div>
+            </div>
           </div>
         </div>
 
@@ -1202,6 +1228,14 @@ export default function App() {
         .input-field:focus {
           border-color: #3b82f6;
           box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        /* Hide scrollbar for mobile nav */
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
     </div>
