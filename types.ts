@@ -1,0 +1,1 @@
+// File moved to src/types.ts. Please delete this file.

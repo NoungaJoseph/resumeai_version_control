@@ -6,6 +6,7 @@ import { generateProfessionalResume, generateCoverLetter } from './services/gemi
 import { ResumeData, AIResumeOutput, AICoverLetterOutput } from './types';
 import { PaymentModal } from './components/PaymentModal';
 import { LandingPage } from './components/LandingPage';
+import './index.css'
 
 // Utility for ID generation
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -181,13 +182,8 @@ const SAMPLE_DATA: ResumeData = {
 
 export default function App() {
   // State for Landing Page vs App
-  const [showLanding, setShowLanding] = useState(() => {
-    if (typeof window !== 'undefined') {
-      // If user has data, skip landing? Optional. For now, let's default to landing unless they clicked start.
-      return localStorage.getItem('hasStarted') !== 'true';
-    }
-    return true;
-  });
+  const [showLanding, setShowLanding] = useState(true);
+
 
   // 1. Initialize state from localStorage if available
   const [data, setData] = useState<ResumeData>(() => {

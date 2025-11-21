@@ -31,7 +31,6 @@ const corsOrigin = FRONTEND_URL === '*' ? '*' : FRONTEND_URL;
 app.use(cors({
   origin: corsOrigin,
   methods: ['GET', 'POST', 'OPTIONS'],
-
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 // Handle preflight requests globally
@@ -80,15 +79,15 @@ const getAIModel = async () => {
   if (!GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not set in server environment variables");
   }
-  const { GoogleGenAI } = await import("@google/genai");
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-  return ai;
+  const { GoogleGenerativeAI } = await import("@google/genai");
+  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  return genAI;
 };
 
 app.post('/api/ai/generate-resume', async (req, res) => {
   try {
     const { data } = req.body;
-    const ai = await getAIModel();
+    const genAI = await getAIModel();
     const isCV = data.mode === 'cv';
     const docType = isCV ? "Curriculum Vitae (CV)" : "Resume";
 
@@ -170,16 +169,16 @@ app.post('/api/ai/generate-resume', async (req, res) => {
       required: ["summary", "skills", "experience", "internships", "volunteering", "projects", "achievements", "publications", "certifications"],
     };
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.0-flash-exp",
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-      },
+      }
     });
 
-    const output = JSON.parse(response.text);
+    const result = await model.generateContent(prompt);
+    const output = JSON.parse(result.response.text());
     res.json({ success: true, data: output });
 
   } catch (error) {
@@ -191,7 +190,7 @@ app.post('/api/ai/generate-resume', async (req, res) => {
 app.post('/api/ai/generate-cover-letter', async (req, res) => {
   try {
     const { data } = req.body;
-    const ai = await getAIModel();
+    const genAI = await getAIModel();
 
     const prompt = `
       You are an expert career coach. Write a powerful, persuasive cover letter.
@@ -225,16 +224,16 @@ app.post('/api/ai/generate-cover-letter', async (req, res) => {
       required: ["subject", "salutation", "opening", "bodyParagraphs", "closing", "signOff"],
     };
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.0-flash-exp",
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-      },
+      }
     });
 
-    const output = JSON.parse(response.text);
+    const result = await model.generateContent(prompt);
+    const output = JSON.parse(result.response.text());
     res.json({ success: true, data: output });
 
   } catch (error) {
