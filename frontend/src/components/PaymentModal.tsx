@@ -129,7 +129,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               <div className="text-center mb-6">
                 <p className="text-slate-600">Total Amount</p>
                 <p className="text-4xl font-bold text-slate-900">{amountXAF} XAF</p>
-                <p className="text-xs text-slate-400 mt-1">($2.00 USD)</p>
+                <p className="text-xs text-slate-400 mt-1">(10 FCFA)</p>
               </div>
               
               <div className="space-y-3">
