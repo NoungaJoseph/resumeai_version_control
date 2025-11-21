@@ -30,10 +30,12 @@ if (FRONTEND_URL && FRONTEND_URL !== '*') {
 const corsOrigin = FRONTEND_URL === '*' ? '*' : FRONTEND_URL;
 app.use(cors({
   origin: corsOrigin,
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
+// Handle preflight requests globally
+app.options('*', cors());
 // Parse JSON bodies
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));

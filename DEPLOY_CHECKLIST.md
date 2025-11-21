@@ -237,7 +237,7 @@ If requests go to `resumeai-backend.onrender.com`, you're connected! ✅
 ### B. Test PDF Download
 1. Click "Download" button
 2. Should show payment modal
-3. Click "Unlock ($2)"
+3. Click "Unlock (10 FCFA)"
 4. Select payment method
 5. Enter test phone number (for demo mode)
 
