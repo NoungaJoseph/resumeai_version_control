@@ -171,7 +171,7 @@ app.post('/api/ai/generate-resume', async (req, res) => {
     };
 
     // ✅ Using NEW SDK syntax
-    const model = ai.models.generateContent({
+    const result = await ai.models.generateContent({
       model: "gemini-2.0-flash-exp",
       contents: prompt,
       config: {
@@ -180,8 +180,7 @@ app.post('/api/ai/generate-resume', async (req, res) => {
       },
     });
 
-    const result = await model;
-    const output = JSON.parse(result.text());
+    const output = JSON.parse(result.text);
     res.json({ success: true, data: output });
 
   } catch (error) {
