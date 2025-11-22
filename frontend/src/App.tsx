@@ -10,7 +10,173 @@ import './index.css'
 
 // Utility for ID generation
 const generateId = () => Math.random().toString(36).substring(2, 9);
+// Add these utility functions at the top of App.tsx (after imports)
 
+// Generate unique session ID
+const generateSessionId = () => {
+  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+// Check if current session has downloaded
+const hasSessionDownloaded = (sessionId: string): boolean => {
+  const downloadedSessions = JSON.parse(localStorage.getItem('downloadedSessions') || '[]');
+  return downloadedSessions.includes(sessionId);
+};
+
+// Mark session as downloaded
+const markSessionAsDownloaded = (sessionId: string) => {
+  const downloadedSessions = JSON.parse(localStorage.getItem('downloadedSessions') || '[]');
+  if (!downloadedSessions.includes(sessionId)) {
+    downloadedSessions.push(sessionId);
+    localStorage.setItem('downloadedSessions', JSON.stringify(downloadedSessions));
+  }
+};
+
+// In your App component, update the data state initialization:
+
+const [data, setData] = useState<ResumeData>(() => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('resumeData');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        
+        // Check if this session already downloaded
+        if (parsed.sessionId && hasSessionDownloaded(parsed.sessionId)) {
+          // Reset payment status - force them to pay again
+          return {
+            ...parsed,
+            isPaid: false,
+            hasDownloaded: true,
+            paymentReference: undefined
+          };
+        }
+        
+        // If no sessionId, create one
+        if (!parsed.sessionId) {
+          parsed.sessionId = generateSessionId();
+        }
+        
+        return parsed;
+      } catch (e) {
+        console.error('Failed to parse saved resume data');
+      }
+    }
+    // Create new session
+    return { ...INITIAL_DATA, sessionId: generateSessionId() };
+  }
+  return { ...INITIAL_DATA, sessionId: generateSessionId() };
+});
+const handleDownloadClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  if (!data.isPaid) {
+    setIsPaymentModalOpen(true);
+    return;
+  }
+  executeDownload();
+};
+// Update the handlePaymentSuccess function:
+
+const handlePaymentSuccess = () => {
+  // Generate NEW session ID on successful payment
+  const newSessionId = generateSessionId();
+  
+  setData(prev => ({ 
+    ...prev, 
+    isPaid: true,
+    hasDownloaded: false,
+    sessionId: newSessionId
+  }));
+  
+  setIsPaymentModalOpen(false);
+};
+
+// Update the executeDownload function:
+
+const executeDownload = () => {
+  const originalTitle = document.title;
+  if (data.fullName) {
+    const type = data.mode === 'cover-letter' ? 'Cover_Letter' : data.mode === 'cv' ? 'CV' : 'Resume';
+    document.title = `${data.fullName.replace(' ', '_')}_${type}`;
+  }
+  
+  // Force active tab to preview for rendering
+  setActiveTab('preview');
+  
+  setTimeout(() => {
+    window.print();
+    document.title = originalTitle;
+    
+    // Mark this session as downloaded AFTER print dialog closes
+    setTimeout(() => {
+      if (data.sessionId) {
+        markSessionAsDownloaded(data.sessionId);
+        setData(prev => ({ 
+          ...prev, 
+          hasDownloaded: true,
+          isPaid: false // Lock download button
+        }));
+      }
+    }, 1000);
+  }, 500);
+};
+
+// Update the resetData function to create new session:
+
+const resetData = () => {
+  if (confirm("This will clear your current data. Are you sure?")) {
+    const newSessionId = generateSessionId();
+    const resetState = { ...INITIAL_DATA, sessionId: newSessionId };
+    
+    setData(resetState);
+    setAiOutput(null);
+    setAiCoverLetter(null);
+    localStorage.removeItem('resumeData');
+    localStorage.removeItem('aiOutput');
+    localStorage.removeItem('aiCoverLetter');
+  }
+};
+
+// Update the download button UI to show status:
+
+<button
+  onClick={handleDownloadClick}
+  className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer shrink-0
+    ${data.hasDownloaded 
+      ? 'bg-slate-400 text-white cursor-not-allowed opacity-60' 
+      : data.isPaid 
+        ? 'bg-green-600 text-white hover:bg-green-700' 
+        : 'bg-slate-900 text-white hover:bg-slate-800'
+    }`}
+  title={
+    data.hasDownloaded 
+      ? "Already downloaded - Pay to download again" 
+      : data.isPaid 
+        ? "Download PDF" 
+        : "Unlock Download"
+  }
+  disabled={data.hasDownloaded && !data.isPaid}
+>
+  {data.hasDownloaded ? (
+    <>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+        <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+      </svg>
+      <span className="hidden sm:inline">Downloaded - Pay Again (10 FCFA)</span>
+    </>
+  ) : data.isPaid ? (
+    <>
+      <DownloadIcon className="w-4 h-4" />
+      <span className="hidden sm:inline">Download</span>
+    </>
+  ) : (
+    <>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+        <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+      </svg>
+      <span className="hidden sm:inline">Unlock (10 FCFA)</span>
+    </>
+  )}
+</button>
 // Helper to format YYYY-MM to "Mon YYYY"
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
@@ -1236,4 +1402,19 @@ export default function App() {
       `}</style>
     </div>
   );
+}
+function setIsPaymentModalOpen(arg0: boolean) {
+  throw new Error('Function not implemented.');
+}
+
+function setActiveTab(arg0: string) {
+  throw new Error('Function not implemented.');
+}
+
+function setAiOutput(arg0: null) {
+  throw new Error('Function not implemented.');
+}
+
+function setAiCoverLetter(arg0: null) {
+  throw new Error('Function not implemented.');
 }

@@ -62,9 +62,11 @@ export interface ResumeData {
   jobDescription?: string; // The JD to tailor the letter to
   coverLetterBody?: string; // The generated HTML/Text content
   
-  // Payment State
+  // Payment & Download State
   isPaid: boolean;
   paymentReference?: string;
+  sessionId?: string; // Unique session identifier
+  hasDownloaded?: boolean; // Track if this session has downloaded
 }
 
 // The structure expected back from the AI
