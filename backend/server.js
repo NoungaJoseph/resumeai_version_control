@@ -74,20 +74,21 @@ const getCampayToken = async () => {
 
 // --- AI GENERATION ENDPOINTS ---
 
-// Helper to get AI Client (Dynamic Import for ESM compatibility in CJS)
+// ✅ FIXED: Using NEW @google/genai SDK syntax
 const getAIModel = async () => {
   if (!GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not set in server environment variables");
   }
-  const { GoogleGenerativeAI } = await import("@google/genai");
-  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  return genAI;
+  const genAIModule = await import("@google/genai");
+  const GoogleGenAI = genAIModule.GoogleGenAI; // ✅ Changed from GoogleGenerativeAI
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY }); // ✅ Pass as object
+  return ai;
 };
 
 app.post('/api/ai/generate-resume', async (req, res) => {
   try {
     const { data } = req.body;
-    const genAI = await getAIModel();
+    const ai = await getAIModel();
     const isCV = data.mode === 'cv';
     const docType = isCV ? "Curriculum Vitae (CV)" : "Resume";
 
@@ -169,16 +170,18 @@ app.post('/api/ai/generate-resume', async (req, res) => {
       required: ["summary", "skills", "experience", "internships", "volunteering", "projects", "achievements", "publications", "certifications"],
     };
 
-    const model = genAI.getGenerativeModel({ 
+    // ✅ Using NEW SDK syntax
+    const model = ai.models.generateContent({
       model: "gemini-2.0-flash-exp",
-      generationConfig: {
+      contents: prompt,
+      config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-      }
+      },
     });
 
-    const result = await model.generateContent(prompt);
-    const output = JSON.parse(result.response.text());
+    const result = await model;
+    const output = JSON.parse(result.text());
     res.json({ success: true, data: output });
 
   } catch (error) {
@@ -190,7 +193,7 @@ app.post('/api/ai/generate-resume', async (req, res) => {
 app.post('/api/ai/generate-cover-letter', async (req, res) => {
   try {
     const { data } = req.body;
-    const genAI = await getAIModel();
+    const ai = await getAIModel();
 
     const prompt = `
       You are an expert career coach. Write a powerful, persuasive cover letter.
@@ -224,16 +227,18 @@ app.post('/api/ai/generate-cover-letter', async (req, res) => {
       required: ["subject", "salutation", "opening", "bodyParagraphs", "closing", "signOff"],
     };
 
-    const model = genAI.getGenerativeModel({ 
+    // ✅ Using NEW SDK syntax
+    const model = ai.models.generateContent({
       model: "gemini-2.0-flash-exp",
-      generationConfig: {
+      contents: prompt,
+      config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-      }
+      },
     });
 
-    const result = await model.generateContent(prompt);
-    const output = JSON.parse(result.response.text());
+    const result = await model;
+    const output = JSON.parse(result.text());
     res.json({ success: true, data: output });
 
   } catch (error) {
