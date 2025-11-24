@@ -1,3 +1,4 @@
+
 import React, { forwardRef } from 'react';
 import { ResumeData, AIResumeOutput, AICoverLetterOutput } from '../types';
 import { MailIcon, PhoneIcon, MapPinIcon, GlobeIcon } from './Icons';
@@ -8,8 +9,54 @@ interface ResumePreviewProps {
   aiCoverLetter?: AICoverLetterOutput | null;
 }
 
+// Translation dictionary for resume headers
+const LABELS = {
+  en: {
+    profile: "Professional Profile",
+    experience: "Professional Experience",
+    education: "Education",
+    skills: "Skills",
+    competencies: "Competencies",
+    expertise: "Expertise",
+    languages: "Languages",
+    projects: "Projects",
+    internships: "Internships",
+    volunteering: "Volunteering",
+    awards: "Awards",
+    honors: "Honors",
+    certifications: "Certifications",
+    publications: "Publications",
+    credentials: "Credentials",
+    keyProjects: "Key Projects",
+    academicExp: "Academic & Professional Experience",
+    research: "Research Projects"
+  },
+  fr: {
+    profile: "Profil Professionnel",
+    experience: "Expérience Professionnelle",
+    education: "Formation",
+    skills: "Compétences",
+    competencies: "Compétences Clés",
+    expertise: "Expertise",
+    languages: "Langues",
+    projects: "Projets",
+    internships: "Stages",
+    volunteering: "Bénévolat",
+    awards: "Distinctions",
+    honors: "Honneurs",
+    certifications: "Certifications",
+    publications: "Publications",
+    credentials: "Accréditations",
+    keyProjects: "Projets Clés",
+    academicExp: "Expérience Académique & Professionnelle",
+    research: "Projets de Recherche"
+  }
+};
+
 const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiContent, aiCoverLetter }, ref) => {
   const themeColor = raw.themeColor || '#1e3a8a'; // Default to Navy if not set
+  const lang = raw.language || 'en'; // Default to English
+  const t = LABELS[lang];
 
   // --- HEADER RENDERERS FOR COVER LETTER REUSE ---
   
@@ -124,7 +171,8 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
   // --- COVER LETTER RENDERER ---
   if (raw.mode === 'cover-letter') {
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const dateOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    const today = new Date().toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', dateOptions);
 
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
@@ -169,10 +217,15 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                       </>
                    ) : (
                       <div className="opacity-50 italic space-y-4">
-                         <p>Dear Hiring Manager,</p>
-                         <p>I am writing to express my strong interest in the {raw.targetRole || "[Job Title]"} position at {raw.companyName || "[Company Name]"}, as advertised.</p>
+                         <p>{lang === 'fr' ? 'Cher Responsable du recrutement,' : 'Dear Hiring Manager,'}</p>
+                         <p>
+                           {lang === 'fr' 
+                             ? `Je vous écris pour exprimer mon vif intérêt pour le poste de ${raw.targetRole || "[Titre du poste]"} chez ${raw.companyName || "[Nom de l'entreprise]"}, tel qu'annoncé.`
+                             : `I am writing to express my strong interest in the ${raw.targetRole || "[Job Title]"} position at ${raw.companyName || "[Company Name]"}, as advertised.`
+                           }
+                         </p>
                          <p>[Generate your cover letter to see a professional, persuasive argument tailored to your profile and the job description here...]</p>
-                         <p>Sincerely,</p>
+                         <p>{lang === 'fr' ? 'Cordialement,' : 'Sincerely,'}</p>
                          <p>{raw.fullName}</p>
                       </div>
                    )}
@@ -250,7 +303,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <section className="mb-10 break-inside-avoid">
                       <h2 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-3" style={{ color: themeColor }}>
                          <span className="w-8 h-0.5 bg-slate-300"></span>
-                         Professional Profile
+                         {t.profile}
                       </h2>
                       <p className="text-sm leading-7 text-slate-700 text-justify">{dataToRender.summary}</p>
                     </section>
@@ -260,7 +313,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <section className="mb-10">
                        <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
                          <span className="w-8 h-0.5 bg-slate-300"></span>
-                         Experience
+                         {t.experience}
                       </h2>
                       <div className="space-y-8">
                         {dataToRender.experience.map((exp, idx) => (
@@ -287,7 +340,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <section className="mb-10">
                        <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
                          <span className="w-8 h-0.5 bg-slate-300"></span>
-                         Internships
+                         {t.internships}
                       </h2>
                       <div className="space-y-8">
                         {dataToRender.internships.map((exp, idx) => (
@@ -314,7 +367,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <section className="mb-10">
                        <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
                          <span className="w-8 h-0.5 bg-slate-300"></span>
-                         Key Projects
+                         {t.keyProjects}
                       </h2>
                       <div className="space-y-6">
                          {dataToRender.projects.map((proj, idx) => (
@@ -339,7 +392,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <section>
                        <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
                          <span className="w-8 h-0.5 bg-slate-300"></span>
-                         Volunteering
+                         {t.volunteering}
                       </h2>
                       <div className="space-y-6">
                          {dataToRender.volunteering.map((vol, idx) => (
@@ -365,7 +418,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                <div className="flex-1 bg-slate-50 p-10 pl-6 border-l border-slate-100 print:bg-slate-50 print:p-8 print:pl-8 print:border-l-0 print:border-t print:w-full">
                   {dataToRender.skills.length > 0 && (
                     <section className="mb-8 break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">Competencies</h2>
+                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.competencies}</h2>
                       <div className="flex flex-wrap gap-2">
                         {dataToRender.skills.map((skill, idx) => (
                           <span key={idx} className="text-xs font-medium bg-white border border-slate-200 text-slate-700 px-2.5 py-1 rounded-md shadow-sm print:border-slate-300">
@@ -378,12 +431,12 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                   {dataToRender.languages && dataToRender.languages.length > 0 && (
                     <section className="mb-8 break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">Languages</h2>
+                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.languages}</h2>
                       <ul className="space-y-2">
-                        {dataToRender.languages.map((lang, idx) => (
+                        {dataToRender.languages.map((langItem, idx) => (
                           <li key={idx} className="text-sm text-slate-600 flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-400 print:bg-slate-600"></span>
-                            {lang}
+                            {langItem}
                           </li>
                         ))}
                       </ul>
@@ -392,7 +445,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                   {raw.education.length > 0 && (
                     <section className="mb-8 break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">Education</h2>
+                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.education}</h2>
                       <div className="space-y-5">
                         {raw.education.map((edu, idx) => (
                           <div key={idx}>
@@ -407,7 +460,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                    {dataToRender.certifications && dataToRender.certifications.length > 0 && (
                     <section className="mb-8 break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">Certifications</h2>
+                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.certifications}</h2>
                        <ul className="space-y-3">
                         {dataToRender.certifications.map((cert, idx) => (
                           <li key={idx} className="text-xs text-slate-600 leading-relaxed">
@@ -420,7 +473,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                   
                   {dataToRender.publications && dataToRender.publications.length > 0 && (
                     <section className="mb-8 break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">Publications</h2>
+                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.publications}</h2>
                        <ul className="space-y-3">
                         {dataToRender.publications.map((pub, idx) => (
                           <li key={idx} className="text-xs text-slate-600 leading-relaxed italic">
@@ -433,7 +486,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                   {dataToRender.achievements && dataToRender.achievements.length > 0 && (
                     <section className="break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">Awards</h2>
+                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.awards}</h2>
                        <ul className="space-y-3">
                         {dataToRender.achievements.map((ach, idx) => (
                           <li key={idx} className="text-xs text-slate-600 leading-relaxed">
@@ -482,7 +535,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             {/* Summary */}
             {dataToRender.summary && (
               <section className="mb-8 break-inside-avoid">
-                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">Professional Profile</h2>
+                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.profile}</h2>
                 <p className="text-sm leading-relaxed text-slate-800 text-justify">{dataToRender.summary}</p>
               </section>
             )}
@@ -490,7 +543,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             {/* Education - Top Priority for Academic */}
             {raw.education.length > 0 && (
               <section className="mb-8">
-                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">Education</h2>
+                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.education}</h2>
                 <div className="space-y-4">
                   {raw.education.map((edu, idx) => (
                     <div key={idx} className="break-inside-avoid">
@@ -508,7 +561,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             {/* Experience */}
             {dataToRender.experience.length > 0 && (
               <section className="mb-8">
-                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">Academic & Professional Experience</h2>
+                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.academicExp}</h2>
                 <div className="space-y-6">
                   {dataToRender.experience.map((exp, idx) => (
                     <div key={idx} className="break-inside-avoid">
@@ -531,7 +584,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             {/* Internships */}
             {dataToRender.internships.length > 0 && (
               <section className="mb-8">
-                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">Internships</h2>
+                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.internships}</h2>
                 <div className="space-y-6">
                   {dataToRender.internships.map((exp, idx) => (
                     <div key={idx} className="break-inside-avoid">
@@ -554,7 +607,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             {/* Publications */}
             {dataToRender.publications && dataToRender.publications.length > 0 && (
               <section className="mb-8 break-inside-avoid">
-                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">Publications & Papers</h2>
+                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.publications}</h2>
                 <ul className="list-decimal list-outside ml-5 space-y-3">
                    {dataToRender.publications.map((pub, idx) => (
                      <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1 text-justify">{pub}</li>
@@ -566,7 +619,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             {/* Research / Projects */}
             {dataToRender.projects.length > 0 && (
               <section className="mb-8">
-                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">Research Projects</h2>
+                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.research}</h2>
                 <div className="space-y-5">
                    {dataToRender.projects.map((proj, idx) => (
                      <div key={idx} className="break-inside-avoid">
@@ -590,7 +643,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             {/* Volunteering */}
             {dataToRender.volunteering.length > 0 && (
               <section className="mb-8">
-                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">Service & Volunteering</h2>
+                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.volunteering}</h2>
                 <div className="space-y-6">
                   {dataToRender.volunteering.map((exp, idx) => (
                     <div key={idx} className="break-inside-avoid">
@@ -613,7 +666,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             {/* Certifications */}
             {dataToRender.certifications && dataToRender.certifications.length > 0 && (
                <section className="mb-8 break-inside-avoid">
-                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">Certifications</h2>
+                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.certifications}</h2>
                 <ul className="list-disc list-outside ml-5 space-y-1.5">
                    {dataToRender.certifications.map((cert, idx) => (
                      <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1">{cert}</li>
@@ -626,10 +679,10 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 break-inside-avoid">
                 {dataToRender.languages && dataToRender.languages.length > 0 && (
                   <section>
-                    <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">Languages</h2>
+                    <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.languages}</h2>
                     <ul className="list-none space-y-1">
-                      {dataToRender.languages.map((lang, idx) => (
-                        <li key={idx} className="text-sm leading-relaxed text-slate-800">{lang}</li>
+                      {dataToRender.languages.map((langItem, idx) => (
+                        <li key={idx} className="text-sm leading-relaxed text-slate-800">{langItem}</li>
                       ))}
                     </ul>
                   </section>
@@ -637,7 +690,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                 
                 {dataToRender.skills.length > 0 && (
                   <section>
-                    <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">Technical Skills</h2>
+                    <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.skills}</h2>
                     <p className="text-sm leading-relaxed text-slate-800">
                       {dataToRender.skills.join(' • ')}
                     </p>
@@ -648,7 +701,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             {/* Achievements */}
             {dataToRender.achievements && dataToRender.achievements.length > 0 && (
               <section className="mt-8 break-inside-avoid">
-                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">Awards & Honors</h2>
+                <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.awards}</h2>
                  <ul className="list-disc list-outside ml-5 space-y-1">
                     {dataToRender.achievements.map((ach, idx) => (
                       <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1">{ach}</li>
@@ -675,7 +728,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
               <section className="mb-10 break-inside-avoid">
                 <h2 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-3" style={{ color: themeColor }}>
                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                   Executive Profile
+                   {t.profile}
                 </h2>
                 <p className="text-sm leading-relaxed text-slate-700">{dataToRender.summary}</p>
               </section>
@@ -688,7 +741,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <section className="mb-10">
                       <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                        Professional Experience
+                        {t.experience}
                       </h2>
                       <div className="space-y-8">
                         {dataToRender.experience.map((exp, idx) => (
@@ -715,7 +768,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <section className="mb-10">
                       <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                        Internships
+                        {t.internships}
                       </h2>
                       <div className="space-y-8">
                         {dataToRender.internships.map((exp, idx) => (
@@ -742,7 +795,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <section className="mb-10">
                       <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                        Key Projects
+                        {t.keyProjects}
                       </h2>
                       <div className="space-y-6">
                          {dataToRender.projects.map((proj, idx) => (
@@ -767,7 +820,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <section className="mb-10">
                       <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                        Volunteering
+                        {t.volunteering}
                       </h2>
                       <div className="space-y-6">
                          {dataToRender.volunteering.map((vol, idx) => (
@@ -792,7 +845,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <section className="mb-10 break-inside-avoid">
                       <h2 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-3" style={{ color: themeColor }}>
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                        Publications
+                        {t.publications}
                       </h2>
                        <ul className="list-none space-y-2">
                         {dataToRender.publications.map((pub, idx) => (
@@ -807,7 +860,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                <div className="col-span-1 space-y-10">
                   {raw.education.length > 0 && (
                     <section className="break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>Education</h2>
+                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.education}</h2>
                       <div className="space-y-4">
                         {raw.education.map((edu, idx) => (
                           <div key={idx}>
@@ -822,7 +875,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                   {dataToRender.skills.length > 0 && (
                     <section className="break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>Expertise</h2>
+                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.expertise}</h2>
                       <div className="flex flex-col gap-2">
                         {dataToRender.skills.map((skill, idx) => (
                           <span key={idx} className="text-sm text-slate-600 font-medium">
@@ -835,10 +888,10 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                   {dataToRender.languages && dataToRender.languages.length > 0 && (
                     <section className="break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>Languages</h2>
+                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.languages}</h2>
                       <ul className="space-y-2">
-                        {dataToRender.languages.map((lang, idx) => (
-                          <li key={idx} className="text-sm text-slate-600">{lang}</li>
+                        {dataToRender.languages.map((langItem, idx) => (
+                          <li key={idx} className="text-sm text-slate-600">{langItem}</li>
                         ))}
                       </ul>
                     </section>
@@ -846,7 +899,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                   {dataToRender.certifications && dataToRender.certifications.length > 0 && (
                     <section className="break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>Credentials</h2>
+                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.credentials}</h2>
                        <ul className="space-y-2">
                         {dataToRender.certifications.map((cert, idx) => (
                           <li key={idx} className="text-sm text-slate-600">{cert}</li>
@@ -857,7 +910,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                   {dataToRender.achievements && dataToRender.achievements.length > 0 && (
                     <section className="break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>Honors</h2>
+                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.honors}</h2>
                        <ul className="space-y-2">
                         {dataToRender.achievements.map((ach, idx) => (
                           <li key={idx} className="text-sm text-slate-600 italic">"{ach}"</li>
@@ -884,14 +937,14 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
             {dataToRender.summary && (
               <section className="mb-6 break-inside-avoid">
-                <SectionTitle title="Professional Profile" />
+                <SectionTitle title={t.profile} />
                 <p className="text-sm leading-relaxed text-slate-700">{dataToRender.summary}</p>
               </section>
             )}
 
             {dataToRender.experience.length > 0 && (
               <section className="mb-6">
-                <SectionTitle title="Professional Experience" />
+                <SectionTitle title={t.experience} />
                 <div className="space-y-5">
                   {dataToRender.experience.map((exp, idx) => (
                     <div key={idx} className="break-inside-avoid">
@@ -913,7 +966,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
             {dataToRender.internships.length > 0 && (
               <section className="mb-6">
-                <SectionTitle title="Internships" />
+                <SectionTitle title={t.internships} />
                 <div className="space-y-5">
                   {dataToRender.internships.map((exp, idx) => (
                     <div key={idx} className="break-inside-avoid">
@@ -935,7 +988,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
             {dataToRender.projects.length > 0 && (
               <section className="mb-6">
-                <SectionTitle title="Projects" />
+                <SectionTitle title={t.projects} />
                 <div className="space-y-4">
                    {dataToRender.projects.map((proj, idx) => (
                      <div key={idx} className="break-inside-avoid">
@@ -958,7 +1011,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             
             {dataToRender.volunteering.length > 0 && (
               <section className="mb-6">
-                <SectionTitle title="Volunteering" />
+                <SectionTitle title={t.volunteering} />
                 <div className="space-y-4">
                    {dataToRender.volunteering.map((vol, idx) => (
                      <div key={idx} className="break-inside-avoid">
@@ -980,7 +1033,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
             {raw.education.length > 0 && (
               <section className="mb-6 break-inside-avoid">
-                <SectionTitle title="Education" />
+                <SectionTitle title={t.education} />
                 <div className="space-y-3">
                   {raw.education.map((edu, idx) => (
                     <div key={idx}>
@@ -997,7 +1050,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
              {dataToRender.achievements && dataToRender.achievements.length > 0 && (
               <section className="mb-6 break-inside-avoid">
-                <SectionTitle title="Achievements" />
+                <SectionTitle title={t.awards} />
                  <ul className="list-disc list-outside ml-4 space-y-1">
                     {dataToRender.achievements.map((ach, idx) => (
                       <li key={idx} className="text-sm leading-relaxed text-slate-700 pl-1">{ach}</li>
@@ -1008,7 +1061,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
             {dataToRender.skills.length > 0 && (
               <section className="break-inside-avoid">
-                <SectionTitle title="Skills" />
+                <SectionTitle title={t.skills} />
                 <div className="flex flex-wrap gap-2">
                   {dataToRender.skills.map((skill, idx) => (
                     <span key={idx} className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-medium print:bg-transparent print:p-0 print:text-slate-700 print:after:content-[','] print:last:after:content-none print:mr-1">
@@ -1038,14 +1091,14 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
               <div className="flex-[1.6] p-10 pr-6 border-r border-slate-100 print:border-none print:w-full print:p-10">
                 {dataToRender.summary && (
                   <div className="mb-8 break-inside-avoid">
-                    <h2 className="text-sm font-bold uppercase tracking-widest mb-3" style={{ color: themeColor }}>Profile</h2>
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-3" style={{ color: themeColor }}>{t.profile}</h2>
                     <p className="text-sm leading-relaxed text-slate-700">{dataToRender.summary}</p>
                   </div>
                 )}
 
                 {dataToRender.experience.length > 0 && (
                   <div className="mb-8">
-                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>Experience</h2>
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.experience}</h2>
                     <div className="space-y-6">
                       {dataToRender.experience.map((exp, idx) => (
                         <div key={idx} className="break-inside-avoid">
@@ -1064,7 +1117,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                 
                 {dataToRender.internships.length > 0 && (
                   <div className="mb-8">
-                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>Internships</h2>
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.internships}</h2>
                     <div className="space-y-6">
                       {dataToRender.internships.map((exp, idx) => (
                         <div key={idx} className="break-inside-avoid">
@@ -1083,7 +1136,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                 {dataToRender.projects.length > 0 && (
                   <div className="mb-8">
-                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>Projects</h2>
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.projects}</h2>
                     <div className="space-y-5">
                        {dataToRender.projects.map((proj, idx) => (
                          <div key={idx} className="break-inside-avoid">
@@ -1104,7 +1157,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                 {dataToRender.volunteering.length > 0 && (
                   <div>
-                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>Volunteering</h2>
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.volunteering}</h2>
                     <div className="space-y-5">
                        {dataToRender.volunteering.map((vol, idx) => (
                          <div key={idx} className="break-inside-avoid">
@@ -1126,7 +1179,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
               <div className="flex-1 p-10 pl-6 bg-slate-50/30 print:bg-slate-50 print:w-full print:p-10 print:border-t">
                 {raw.education.length > 0 && (
                   <div className="mb-8 break-inside-avoid">
-                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>Education</h2>
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.education}</h2>
                     <div className="space-y-4">
                       {raw.education.map((edu, idx) => (
                         <div key={idx}>
@@ -1141,7 +1194,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                 {dataToRender.skills.length > 0 && (
                   <div className="mb-8 break-inside-avoid">
-                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>Skills</h2>
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.skills}</h2>
                     <div className="flex flex-wrap gap-2">
                       {dataToRender.skills.map((skill, idx) => (
                         <div key={idx} className="text-sm text-slate-700 bg-white border border-slate-200 px-2 py-1 rounded">
@@ -1154,7 +1207,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                 {dataToRender.achievements && dataToRender.achievements.length > 0 && (
                   <div className="break-inside-avoid">
-                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>Achievements</h2>
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.awards}</h2>
                     <ul className="list-disc list-outside ml-4 space-y-2">
                       {dataToRender.achievements.map((ach, idx) => (
                         <li key={idx} className="text-sm leading-relaxed text-slate-600 pl-1">{ach}</li>
@@ -1203,7 +1256,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                  <div>
                     <div className="flex items-center mb-4 break-inside-avoid">
                       <div className="h-px flex-1 bg-slate-200"></div>
-                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">Experience</h2>
+                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.experience}</h2>
                       <div className="h-px flex-1 bg-slate-200"></div>
                     </div>
                     <div className="space-y-6">
@@ -1232,7 +1285,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                  <div>
                     <div className="flex items-center mb-4 break-inside-avoid">
                       <div className="h-px flex-1 bg-slate-200"></div>
-                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">Internships</h2>
+                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.internships}</h2>
                       <div className="h-px flex-1 bg-slate-200"></div>
                     </div>
                     <div className="space-y-6">
@@ -1261,7 +1314,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                  <div>
                     <div className="flex items-center mb-4 break-inside-avoid">
                       <div className="h-px flex-1 bg-slate-200"></div>
-                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">Projects</h2>
+                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.projects}</h2>
                       <div className="h-px flex-1 bg-slate-200"></div>
                     </div>
                     <div className="grid grid-cols-1 gap-6">
@@ -1288,7 +1341,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                  <div>
                     <div className="flex items-center mb-4 break-inside-avoid">
                       <div className="h-px flex-1 bg-slate-200"></div>
-                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">Volunteering</h2>
+                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.volunteering}</h2>
                       <div className="h-px flex-1 bg-slate-200"></div>
                     </div>
                     <div className="grid grid-cols-1 gap-6">
@@ -1314,7 +1367,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                <div className="grid grid-cols-2 gap-8 break-inside-avoid">
                  {raw.education.length > 0 && (
                    <div>
-                      <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">Education</h2>
+                      <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">{t.education}</h2>
                       <div className="space-y-4">
                         {raw.education.map((edu, idx) => (
                           <div key={idx} className="text-center">
@@ -1329,7 +1382,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                  
                  {dataToRender.skills.length > 0 && (
                    <div>
-                      <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">Skills</h2>
+                      <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">{t.skills}</h2>
                       <div className="flex flex-wrap justify-center gap-2">
                          {dataToRender.skills.map((skill, idx) => (
                             <span key={idx} className="text-sm text-slate-700 font-medium border-b border-slate-200 pb-0.5">{skill}</span>
@@ -1341,7 +1394,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
                  {dataToRender.achievements && dataToRender.achievements.length > 0 && (
                   <div className="break-inside-avoid">
-                     <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">Achievements</h2>
+                     <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">{t.awards}</h2>
                      <ul className="list-none text-center space-y-1">
                         {dataToRender.achievements.map((ach, idx) => (
                           <li key={idx} className="text-sm text-slate-700">{ach}</li>
@@ -1382,7 +1435,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
             {dataToRender.summary && (
               <div className="flex break-inside-avoid">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
-                  Summary
+                  {t.profile}
                 </div>
                 <div className="flex-1 p-6 border-b border-slate-100">
                   <p className="text-sm text-slate-700 leading-relaxed">{dataToRender.summary}</p>
@@ -1393,7 +1446,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
              {dataToRender.experience.length > 0 && (
               <div className="flex">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
-                  Work<br/>Experience
+                  {t.experience}
                 </div>
                 <div className="flex-1 p-6 border-b border-slate-100 space-y-6">
                   {dataToRender.experience.map((exp, idx) => (
@@ -1417,7 +1470,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
              {dataToRender.internships.length > 0 && (
               <div className="flex">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
-                  Internships
+                  {t.internships}
                 </div>
                 <div className="flex-1 p-6 border-b border-slate-100 space-y-6">
                   {dataToRender.internships.map((exp, idx) => (
@@ -1441,7 +1494,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
              {raw.education.length > 0 && (
                <div className="flex break-inside-avoid">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
-                  Education
+                  {t.education}
                 </div>
                 <div className="flex-1 p-6 border-b border-slate-100 space-y-4">
                   {raw.education.map((edu, idx) => (
@@ -1458,7 +1511,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
              {dataToRender.projects.length > 0 && (
                <div className="flex">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
-                  Project
+                  {t.projects}
                 </div>
                 <div className="flex-1 p-6 border-b border-slate-100 space-y-4">
                   {dataToRender.projects.map((proj, idx) => (
@@ -1483,7 +1536,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
              {dataToRender.volunteering.length > 0 && (
                <div className="flex">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
-                  Volunteer
+                  {t.volunteering}
                 </div>
                 <div className="flex-1 p-6 border-b border-slate-100 space-y-4">
                   {dataToRender.volunteering.map((vol, idx) => (
@@ -1509,7 +1562,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
               {dataToRender.skills.length > 0 && (
                <div className="flex break-inside-avoid">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
-                  Skills
+                  {t.skills}
                 </div>
                 <div className="flex-1 p-6 border-b border-slate-100 bg-slate-50/50">
                   <div className="flex flex-wrap gap-x-6 gap-y-2">
@@ -1527,7 +1580,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
               {dataToRender.achievements && dataToRender.achievements.length > 0 && (
                <div className="flex flex-1 break-inside-avoid">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
-                  Achievement
+                  {t.awards}
                 </div>
                 <div className="flex-1 p-6">
                    <ul className="list-disc list-outside ml-4 space-y-2">

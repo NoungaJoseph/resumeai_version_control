@@ -1,3 +1,4 @@
+
 export interface ExperienceItem {
   id: string;
   company: string;
@@ -31,6 +32,7 @@ export interface ProjectItem {
 }
 
 export interface ResumeData {
+  language: 'en' | 'fr'; // New field for bilingual support
   mode: 'resume' | 'cv' | 'cover-letter';
   template: 'classic' | 'sidebar' | 'modern' | 'minimalist' | 'cv-academic' | 'cv-executive' | 'cv-corporate';
   themeColor: string; // Hex code
@@ -62,11 +64,13 @@ export interface ResumeData {
   jobDescription?: string; // The JD to tailor the letter to
   coverLetterBody?: string; // The generated HTML/Text content
   
-  // Payment & Download State
+  // Payment State
   isPaid: boolean;
   paymentReference?: string;
-  sessionId?: string; // Unique session identifier
-  hasDownloaded?: boolean; // Track if this session has downloaded
+  
+  // Session Management
+  sessionId?: string;
+  hasDownloaded?: boolean;
 }
 
 // The structure expected back from the AI

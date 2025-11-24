@@ -1,3 +1,4 @@
+
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -13,21 +14,33 @@ const { initializeDatabase, getTransaction, updateTransaction } = require('./db'
 const app = express();
 
 // --- CONFIGURATION ---
-// Use Environment Variable for URL, fallback to Demo if not set
 const CAMPAY_BASE_URL = process.env.CAMPAY_BASE_URL || 'https://demo.campay.net/api'; 
 const CAMPAY_APP_USER = process.env.CAMPAY_APP_USER;
 const CAMPAY_APP_PASSWORD = process.env.CAMPAY_APP_PASSWORD;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+// --- ROBUST API KEY DETECTION ---
+// Check common variable names to prevent configuration errors
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY;
+
+// --- DIAGNOSTICS ---
+console.log("--- SERVER STARTUP CHECKS (v2.2 - Bilingual Support) ---");
+if (!GEMINI_API_KEY) {
+  console.error("❌ FATAL ERROR: GEMINI_API_KEY is missing in environment variables.");
+} else {
+  console.log(`✅ GEMINI_API_KEY is loaded (Starts with: ${GEMINI_API_KEY.substring(0, 4)}...)`);
+}
+// -------------------
 
 // Clean up FRONTEND_URL: remove trailing slashes and extra text
 let FRONTEND_URL = process.env.FRONTEND_URL || '*';
 if (FRONTEND_URL && FRONTEND_URL !== '*') {
-  FRONTEND_URL = FRONTEND_URL.trim().replace(/\/$/, '').split(' ')[0]; // Remove trailing slash and extra text
+  FRONTEND_URL = FRONTEND_URL.trim().replace(/\/$/, '').split(' ')[0]; 
 }
 
 // Enable CORS
-// In production, restrict to your Vercel URL; in development, allow localhost:5173
 const corsOrigin = FRONTEND_URL === '*' ? '*' : FRONTEND_URL;
+console.log(`Configuring CORS for origin: ${corsOrigin}`);
+
 app.use(cors({
   origin: corsOrigin,
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -35,17 +48,17 @@ app.use(cors({
 }));
 // Handle preflight requests globally
 app.options('*', cors());
-// Parse JSON bodies
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
-// --- HEALTH CHECK ROUTE (Required for Render) ---
+// --- FIX: INCREASE PAYLOAD LIMIT ---
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+// --- HEALTH CHECK ROUTE ---
 app.get('/', (req, res) => {
-  res.send('Resume AI Backend is running successfully.');
+  res.send(`Resume AI Backend is running (v2.1). Active Key: ${GEMINI_API_KEY ? 'YES' : 'NO'}. Time: ${new Date().toISOString()}`);
 });
 
 // --- DATABASE INITIALIZATION ---
-// Initialize PostgreSQL database on startup
 initializeDatabase();
 
 // --- CAMPAY TOKEN MANAGEMENT ---
@@ -74,27 +87,78 @@ const getCampayToken = async () => {
 
 // --- AI GENERATION ENDPOINTS ---
 
-// ✅ FIXED: Using NEW @google/genai SDK syntax
+// Helper to get AI Client (Dynamic Import for ESM compatibility in CJS)
 const getAIModel = async () => {
   if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not set in server environment variables");
+    throw new Error("API Key is missing. Please set GEMINI_API_KEY in Render environment variables.");
   }
-  const genAIModule = await import("@google/genai");
-  const GoogleGenAI = genAIModule.GoogleGenAI; // ✅ Changed from GoogleGenerativeAI
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY }); // ✅ Pass as object
-  return ai;
+  
+  // Diagnostic: Log what we are importing to catch version mismatches
+  try {
+    const genAIModule = await import("@google/genai");
+    
+    // Check if we have the correct class
+    const GoogleGenAI = genAIModule.GoogleGenAI;
+    
+    if (!GoogleGenAI) {
+      console.error("❌ Import Error: @google/genai did not export GoogleGenAI. Exports:", Object.keys(genAIModule));
+      throw new Error("Library import failed: GoogleGenAI class not found.");
+    }
+    
+    // console.log("✅ GoogleGenAI class imported successfully.");
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    return ai;
+    
+  } catch (e) {
+    console.error("❌ Critical Error importing @google/genai:", e);
+    throw new Error(`Failed to initialize AI library: ${e.message}`);
+  }
+};
+
+// Helper: Retry Logic for AI calls
+const generateWithRetry = async (ai, modelName, params, retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await ai.models.generateContent({
+        model: modelName,
+        ...params
+      });
+    } catch (error) {
+      // Check for 429 (Rate Limit) or 503 (Service Unavailable)
+      const status = error.status || (error.response ? error.response.status : 0);
+      if ((status === 429 || status === 503) && i < retries - 1) {
+        const delay = 1000 * Math.pow(2, i); // Exponential backoff: 1s, 2s, 4s
+        console.warn(`⚠️ AI Busy (Status ${status}). Retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
 };
 
 app.post('/api/ai/generate-resume', async (req, res) => {
+  console.log("📥 Received request: /api/ai/generate-resume");
   try {
     const { data } = req.body;
+    
+    const payloadSize = JSON.stringify(data).length;
+    console.log(`📊 Payload size: ${(payloadSize / 1024).toFixed(2)} KB`);
+
     const ai = await getAIModel();
     const isCV = data.mode === 'cv';
     const docType = isCV ? "Curriculum Vitae (CV)" : "Resume";
+    const language = data.language === 'fr' ? 'French' : 'English';
+    
+    // MODEL SELECTION: Enforce standard flash model
+    const MODEL_NAME = "gemini-2.5-flash";
 
     const prompt = `
       You are an expert professional resume and CV writer specializing in the "${data.targetRole}" industry.
       Your task is to take the user's rough input data and transform it into a high-impact, professional ${docType}.
+      
+      CRITICAL INSTRUCTION: The output MUST be in ${language}. Translate any input that is in a different language into ${language}.
+      
       ${isCV ? "As this is a CV, ensure the tone is formal, comprehensive, and academically or professionally rigorous." : "Keep it concise and punchy."}
       
       Input Data:
@@ -111,10 +175,10 @@ app.post('/api/ai/generate-resume', async (req, res) => {
       - Projects: ${JSON.stringify(data.projects)}
 
       Instructions:
-      1. Write a compelling professional summary (max 3-4 sentences).
-      2. Extract and categorize key technical and soft skills.
-      3. Format the languages section professionally.
-      4. Rewrite experience notes into ${isCV ? "detailed, formal bullet points" : "punchy result-oriented bullets"}.
+      1. Write a compelling professional summary (max 3-4 sentences) in ${language}.
+      2. Extract and categorize key technical and soft skills in ${language}.
+      3. Format the languages section professionally in ${language}.
+      4. Rewrite experience notes into ${isCV ? "detailed, formal bullet points" : "punchy result-oriented bullets"} in ${language}.
       5. Process Internships, Volunteering, Projects, Achievements, Publications, and Certifications.
       
       Return JSON matching the schema.
@@ -170,9 +234,9 @@ app.post('/api/ai/generate-resume', async (req, res) => {
       required: ["summary", "skills", "experience", "internships", "volunteering", "projects", "achievements", "publications", "certifications"],
     };
 
-    // ✅ Using NEW SDK syntax
-    const result = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
+    console.log(`🤖 Sending request to Google AI (Model: ${MODEL_NAME})...`);
+    
+    const response = await generateWithRetry(ai, MODEL_NAME, {
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -180,27 +244,45 @@ app.post('/api/ai/generate-resume', async (req, res) => {
       },
     });
 
-    const output = JSON.parse(result.text);
+    console.log("✅ AI Generation Successful");
+    
+    if (!response.text) {
+      throw new Error("Empty response received from AI");
+    }
+    
+    const output = JSON.parse(response.text);
     res.json({ success: true, data: output });
 
   } catch (error) {
-    console.error("AI Resume Error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error("❌ AI Resume Error:", error);
+    // Extract useful error info from Google's error object if available
+    let errorMessage = error.message || "Internal Server Error";
+    if (error.response && error.response.data && error.response.data.error) {
+        console.error("Google API Error Details:", JSON.stringify(error.response.data));
+        errorMessage = error.response.data.error.message || errorMessage;
+    }
+    
+    res.status(500).json({ success: false, message: errorMessage });
   }
 });
 
 app.post('/api/ai/generate-cover-letter', async (req, res) => {
+  console.log("📥 Received request: /api/ai/generate-cover-letter");
   try {
     const { data } = req.body;
     const ai = await getAIModel();
+    const MODEL_NAME = "gemini-2.5-flash";
+    const language = data.language === 'fr' ? 'French' : 'English';
 
     const prompt = `
-      You are an expert career coach. Write a powerful, persuasive cover letter.
+      You are an expert career coach. Write a powerful, persuasive cover letter in ${language}.
       Candidate: ${data.fullName}, Target: ${data.targetRole}
       Skills: ${data.skills}
       Key Experience: ${JSON.stringify(data.experience.slice(0, 2))}
       Target Job: ${data.companyName}, Recipient: ${data.recipientName}
       Job Context: ${data.jobDescription}
+      
+      CRITICAL: Output MUST be in ${language}.
       
       Structure:
       1. Opening Hook
@@ -226,90 +308,94 @@ app.post('/api/ai/generate-cover-letter', async (req, res) => {
       required: ["subject", "salutation", "opening", "bodyParagraphs", "closing", "signOff"],
     };
 
-    // ✅ Using NEW SDK syntax
-    const model = ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
+    console.log(`🤖 Sending Cover Letter request (Model: ${MODEL_NAME})...`);
+
+    const response = await generateWithRetry(ai, MODEL_NAME, {
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
       },
     });
-
-    const result = await model;
-    const output = JSON.parse(result.text());
+    
+    console.log("✅ AI Cover Letter Successful");
+    const output = JSON.parse(response.text);
     res.json({ success: true, data: output });
-
+    
   } catch (error) {
-    console.error("AI Cover Letter Error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error("❌ AI Cover Letter Error:", error);
+    let errorMessage = error.message || "Internal Server Error";
+    if (error.response && error.response.data && error.response.data.error) {
+         errorMessage = error.response.data.error.message || errorMessage;
+    }
+    res.status(500).json({ success: false, message: errorMessage });
   }
 });
 
 // --- PAYMENT ENDPOINTS ---
+
 app.post('/api/pay', async (req, res) => {
   const { amount, from, description } = req.body;
-  const external_reference = uuidv4();
+  
+  if (!amount || !from) {
+    return res.status(400).json({ success: false, message: "Missing parameters" });
+  }
 
   try {
     const token = await getCampayToken();
-    const response = await axios.post(`${CAMPAY_BASE_URL}/collect/`, {
-      amount, currency: "XAF", from, description: description || "Resume Builder", external_reference
-    }, { headers: { Authorization: `Token ${token}` } });
+    const externalRef = uuidv4();
 
-    const campayReference = response.data.reference;
-    updateTransaction(campayReference, { status: 'PENDING', amount, external_reference, phone: from, created_at: new Date().toISOString() });
-    
-    res.json({ success: true, reference: campayReference });
+    const paymentData = {
+      amount: amount,
+      from: from,
+      description: description || "Resume AI Payment",
+      external_reference: externalRef
+    };
+
+    const response = await axios.post(`${CAMPAY_BASE_URL}/collect/`, paymentData, {
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    await updateTransaction(externalRef, {
+      status: 'PENDING',
+      amount,
+      phone: from,
+      reference: response.data.reference
+    });
+
+    res.json({ 
+      success: true, 
+      reference: response.data.reference,
+      message: "Payment initiated. Check your phone."
+    });
+
   } catch (error) {
-    console.error("Payment Error:", error.response?.data || error.message);
-    res.status(500).json({ success: false, message: "Payment initiation failed." });
+    console.error("Payment Init Error:", error.response?.data || error.message);
+    res.status(500).json({ success: false, message: "Payment initialization failed" });
   }
 });
 
 app.get('/api/status/:reference', async (req, res) => {
   const { reference } = req.params;
-  const localTx = getTransaction(reference);
-  
-  // If we already know it's successful/failed locally, return that
-  if (localTx && (localTx.status === 'SUCCESSFUL' || localTx.status === 'FAILED')) {
-    return res.json({ status: localTx.status, reference });
-  }
-
   try {
     const token = await getCampayToken();
     const response = await axios.get(`${CAMPAY_BASE_URL}/transaction/${reference}/`, {
-      headers: { Authorization: `Token ${token}` }
+      headers: { 'Authorization': `Token ${token}` }
     });
-    const remoteStatus = response.data.status;
-    // Update local state if changed
-    if (localTx && localTx.status !== remoteStatus) {
-        updateTransaction(reference, { status: remoteStatus });
-    }
-    res.json({ status: remoteStatus, reference: response.data.reference });
-  } catch (error) {
-    // If Campay fails or ID is wrong, return local status or UNKNOWN
-    res.json({ status: localTx ? localTx.status : 'UNKNOWN' });
-  }
-});
 
-app.post('/webhook/campay', (req, res) => {
-  const { status, reference, code, operator } = req.body;
-  
-  // Basic validation - in production, add proper signature verification
-  if (!reference || !status) {
-    console.warn('Webhook received with missing required fields');
-    return res.status(400).send('Missing required fields');
+    const status = response.data.status; 
+    res.json({ success: true, status: status });
+  } catch (error) {
+    console.error("Status Check Error:", error.message);
+    res.status(500).json({ success: false, status: "UNKNOWN" });
   }
-  
-  if (reference && status) {
-    updateTransaction(reference, { status, operator_code: code, operator, webhook_received: true });
-    console.log(`✅ Webhook: Transaction ${reference} updated to ${status}`);
-  }
-  res.status(200).send('OK');
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌍 Backend accessible at: ${FRONTEND_URL === '*' ? 'Any Origin' : FRONTEND_URL}`);
 });
