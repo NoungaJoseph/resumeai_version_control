@@ -1,5 +1,6 @@
 
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useRef, useImperativeHandle, useLayoutEffect, useState, useEffect } from 'react';
+import html2canvas from 'html2canvas';
 import { ResumeData, AIResumeOutput, AICoverLetterOutput } from '../types';
 import { MailIcon, PhoneIcon, MapPinIcon, GlobeIcon } from './Icons';
 
@@ -58,33 +59,137 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
   const lang = raw.language || 'en'; // Default to English
   const t = LABELS[lang];
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [isCompact, setIsCompact] = useState(false);
+
+
+
+  const downloadAsImage = async (format: 'png' | 'jpeg' | 'svg' = 'png') => {
+    if (!containerRef.current) return;
+
+    const originalTransform = containerRef.current.style.transform;
+    const originalBorder = containerRef.current.style.border;
+
+    // Reset for capture
+    containerRef.current.style.transform = 'none';
+
+    try {
+      const canvas = await html2canvas(containerRef.current, {
+        scale: 2, // Higher quality
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      const link = document.createElement('a');
+      link.download = `${raw.fullName || 'resume'}_${raw.mode}.${format}`;
+      link.href = canvas.toDataURL(`image/${format}`);
+      link.click();
+    } catch (err) {
+      console.error("Image generation failed", err);
+      alert("Failed to generate image. Please try again.");
+    } finally {
+      containerRef.current.style.transform = originalTransform;
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    getElement: () => containerRef.current,
+    downloadAsImage
+  }) as any);
+
+  // Scaling Logic
+  useLayoutEffect(() => {
+    if (!containerRef.current) return;
+    const element = containerRef.current;
+    const A4_HEIGHT_PX = 1123; // Approx 297mm @ 96dpi
+
+    // Reset first to measure true height
+    element.style.transform = 'none';
+
+    if (element.scrollHeight > A4_HEIGHT_PX) {
+      setIsCompact(true);
+    } else {
+      setIsCompact(false);
+    }
+
+    // Check again after compact mode might have kicked in (if we used it for classes)
+    // For now, we just calculate scale
+    if (element.scrollHeight > A4_HEIGHT_PX) {
+      const newScale = A4_HEIGHT_PX / element.scrollHeight;
+      // Limit scale to avoid unreadable text
+      setScale(Math.max(newScale, 0.65));
+    } else {
+      setScale(1);
+    }
+  }, [raw, aiContent, aiCoverLetter]);
+
+  // Anti-screenshot & Security
+  useEffect(() => {
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'PrintScreen') {
+        alert("Screenshots are disabled to protect personal information.");
+        document.body.style.filter = 'blur(20px)';
+        setTimeout(() => document.body.style.filter = 'none', 2000);
+      }
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    // Blur on focus lost
+    const handleBlur = () => {
+      document.body.style.filter = 'blur(10px)';
+    };
+
+    const handleFocus = () => {
+      document.body.style.filter = 'none';
+    };
+
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    return () => {
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      // Cleanup styles
+      document.body.style.filter = 'none';
+    };
+  }, []);
+
   // --- HEADER RENDERERS FOR COVER LETTER REUSE ---
-  
+
   // 1. CORPORATE HEADER (Photo, Dark bg)
   const renderCorporateHeader = () => (
     <header className="text-white p-10 pb-8 flex items-center justify-between relative overflow-hidden print:p-8 break-inside-avoid" style={{ backgroundColor: themeColor }}>
-       {/* Decorative Circle */}
-       <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-16 -mt-32 pointer-events-none"></div>
-       
-       <div className="flex items-center gap-8 relative z-10">
-         {raw.photo && (
-           <div className="w-24 h-24 rounded-full border-[3px] border-white/30 shadow-xl overflow-hidden shrink-0 bg-white">
-              <img src={raw.photo} alt={raw.fullName} className="w-full h-full object-cover" />
-           </div>
-         )}
-         <div>
-           <h1 className="text-3xl font-bold uppercase tracking-wide mb-2 text-white">{raw.fullName || "Your Name"}</h1>
-           <p className="text-lg font-light text-white/90">{raw.targetRole || "Professional Title"}</p>
-         </div>
-       </div>
-       
-       <div className="text-right text-sm font-medium text-white/90 space-y-2 relative z-10 hidden sm:block">
-          {raw.email && <div className="flex items-center justify-end gap-3"><span>{raw.email}</span><MailIcon className="w-4 h-4 opacity-80" /></div>}
-          {raw.phone && <div className="flex items-center justify-end gap-3"><span>{raw.phone}</span><PhoneIcon className="w-4 h-4 opacity-80" /></div>}
-          {raw.location && <div className="flex items-center justify-end gap-3"><span>{raw.location}</span><MapPinIcon className="w-4 h-4 opacity-80" /></div>}
-          {raw.linkedin && <div className="flex items-center justify-end gap-3"><span>{raw.linkedin.replace(/^https?:\/\//, '')}</span><GlobeIcon className="w-4 h-4 opacity-80" /></div>}
-          {raw.website && <div className="flex items-center justify-end gap-3"><span>{raw.website.replace(/^https?:\/\//, '')}</span><GlobeIcon className="w-4 h-4 opacity-80" /></div>}
-       </div>
+      {/* Decorative Circle */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-16 -mt-32 pointer-events-none"></div>
+
+      <div className="flex items-center gap-8 relative z-10">
+        {raw.photo && (
+          <div className="w-24 h-24 rounded-full border-[3px] border-white/30 shadow-xl overflow-hidden shrink-0 bg-white">
+            <img src={raw.photo} alt={raw.fullName} className="w-full h-full object-cover" />
+          </div>
+        )}
+        <div>
+          <h1 className="text-3xl font-bold uppercase tracking-wide mb-2 text-white">{raw.fullName || "Your Name"}</h1>
+          <p className="text-lg font-light text-white/90">{raw.targetRole || "Professional Title"}</p>
+        </div>
+      </div>
+
+      <div className="text-right text-sm font-medium text-white/90 space-y-2 relative z-10 hidden sm:block">
+        {raw.email && <div className="flex items-center justify-end gap-3"><span>{raw.email}</span><MailIcon className="w-4 h-4 opacity-80" /></div>}
+        {raw.phone && <div className="flex items-center justify-end gap-3"><span>{raw.phone}</span><PhoneIcon className="w-4 h-4 opacity-80" /></div>}
+        {raw.location && <div className="flex items-center justify-end gap-3"><span>{raw.location}</span><MapPinIcon className="w-4 h-4 opacity-80" /></div>}
+        {raw.linkedin && <div className="flex items-center justify-end gap-3"><span>{raw.linkedin.replace(/^https?:\/\//, '')}</span><GlobeIcon className="w-4 h-4 opacity-80" /></div>}
+        {raw.website && <div className="flex items-center justify-end gap-3"><span>{raw.website.replace(/^https?:\/\//, '')}</span><GlobeIcon className="w-4 h-4 opacity-80" /></div>}
+      </div>
     </header>
   );
 
@@ -93,24 +198,24 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     <div className="p-10 pb-6 border-b break-inside-avoid" style={{ borderColor: themeColor }}>
       <h1 className="text-4xl font-bold mb-2" style={{ color: themeColor }}>{raw.fullName || "Your Name"}</h1>
       <div className="text-sm text-slate-600 flex flex-wrap gap-x-4 items-center">
-         {raw.location && <span>{raw.location}</span>}
-         {raw.email && <span>• {raw.email}</span>}
-         {raw.phone && <span>• {raw.phone}</span>}
-         {raw.linkedin && <span>• {raw.linkedin.replace(/^https?:\/\//, '')}</span>}
-         {raw.website && (
-           <span className="flex items-center">
-             • 
-             <a 
-               href={raw.website.startsWith('http') ? raw.website : `https://${raw.website}`} 
-               target="_blank" 
-               rel="noreferrer"
-               className="ml-2 font-bold px-1 rounded transition-all hover:bg-slate-50 border-b-2"
-               style={{ color: themeColor, borderColor: `${themeColor}60` }}
-             >
-               {raw.website.replace(/^https?:\/\//, '')}
-             </a>
-           </span>
-         )}
+        {raw.location && <span>{raw.location}</span>}
+        {raw.email && <span>• {raw.email}</span>}
+        {raw.phone && <span>• {raw.phone}</span>}
+        {raw.linkedin && <span>• {raw.linkedin.replace(/^https?:\/\//, '')}</span>}
+        {raw.website && (
+          <span className="flex items-center">
+            •
+            <a
+              href={raw.website.startsWith('http') ? raw.website : `https://${raw.website}`}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-2 font-bold px-1 rounded transition-all hover:bg-slate-50 border-b-2"
+              style={{ color: themeColor, borderColor: `${themeColor}60` }}
+            >
+              {raw.website.replace(/^https?:\/\//, '')}
+            </a>
+          </span>
+        )}
       </div>
     </div>
   );
@@ -127,19 +232,19 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
         {raw.phone && <span>• {raw.phone}</span>}
         {raw.linkedin && <span>• {raw.linkedin.replace(/^https?:\/\//, '')}</span>}
         {raw.website && (
-           <span className="flex items-center">
-             • 
-             <a 
-               href={raw.website.startsWith('http') ? raw.website : `https://${raw.website}`} 
-               target="_blank" 
-               rel="noreferrer"
-               className="ml-2 font-bold underline decoration-2 underline-offset-2 hover:opacity-80 transition-opacity"
-               style={{ color: themeColor, textDecorationColor: `${themeColor}80` }}
-             >
-               {raw.website.replace(/^https?:\/\//, '')}
-             </a>
-           </span>
-         )}
+          <span className="flex items-center">
+            •
+            <a
+              href={raw.website.startsWith('http') ? raw.website : `https://${raw.website}`}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-2 font-bold underline decoration-2 underline-offset-2 hover:opacity-80 transition-opacity"
+              style={{ color: themeColor, textDecorationColor: `${themeColor}80` }}
+            >
+              {raw.website.replace(/^https?:\/\//, '')}
+            </a>
+          </span>
+        )}
       </div>
     </header>
   );
@@ -149,9 +254,9 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     <header className="flex justify-between items-start border-b-4 pb-6 mb-10 break-inside-avoid" style={{ borderColor: themeColor }}>
       <div className="flex items-start gap-6">
         {raw.photo && (
-           <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-slate-100">
-              <img src={raw.photo} alt="Profile" className="w-full h-full object-cover" />
-           </div>
+          <div className="w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-slate-100">
+            <img src={raw.photo} alt="Profile" className="w-full h-full object-cover" />
+          </div>
         )}
         <div>
           <h1 className="text-3xl font-bold uppercase tracking-tight mb-2 text-slate-900">
@@ -161,10 +266,10 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
         </div>
       </div>
       <div className="text-right text-sm text-slate-600 space-y-1">
-         {raw.email && <div>{raw.email}</div>}
-         {raw.phone && <div>{raw.phone}</div>}
-         {raw.location && <div>{raw.location}</div>}
-         {raw.website && <div className="font-medium" style={{ color: themeColor }}>{raw.website.replace(/^https?:\/\//, '')}</div>}
+        {raw.email && <div>{raw.email}</div>}
+        {raw.phone && <div>{raw.phone}</div>}
+        {raw.location && <div>{raw.location}</div>}
+        {raw.website && <div className="font-medium" style={{ color: themeColor }}>{raw.website.replace(/^https?:\/\//, '')}</div>}
       </div>
     </header>
   );
@@ -177,66 +282,66 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-           <div ref={ref} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible">
-              
-              {/* Dynamic Header based on selection */}
-              {raw.template === 'cv-corporate' && renderCorporateHeader()}
-              {(raw.template === 'modern' || raw.template === 'sidebar') && renderModernHeader()}
-              {(raw.template === 'classic' || raw.template === 'cv-academic') && <div className="p-[15mm] pb-0">{renderClassicHeader()}</div>}
-              {(raw.template === 'minimalist' || raw.template === 'cv-executive') && <div className="p-[20mm] pb-0">{renderExecutiveHeader()}</div>}
+          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible">
 
-              <div className="flex-1 p-10 sm:p-14 print:p-12 text-slate-700 leading-relaxed">
-                
-                {/* Date & Recipient Block */}
-                <div className="mb-8 break-inside-avoid">
-                  <p className="mb-6 font-medium text-slate-500">{today}</p>
-                  
-                  <div className="text-slate-900">
-                    <p className="font-bold">{raw.recipientName || "Hiring Manager"}</p>
-                    {raw.recipientRole && <p>{raw.recipientRole}</p>}
-                    <p className="font-bold mt-1">{raw.companyName || "Company Name"}</p>
-                    {raw.companyAddress && <p className="text-slate-500 text-sm whitespace-pre-line">{raw.companyAddress}</p>}
-                  </div>
-                </div>
+            {/* Dynamic Header based on selection */}
+            {raw.template === 'cv-corporate' && renderCorporateHeader()}
+            {(raw.template === 'modern' || raw.template === 'sidebar') && renderModernHeader()}
+            {(raw.template === 'classic' || raw.template === 'cv-academic') && <div className="p-[15mm] pb-0">{renderClassicHeader()}</div>}
+            {(raw.template === 'minimalist' || raw.template === 'cv-executive') && <div className="p-[20mm] pb-0">{renderExecutiveHeader()}</div>}
 
-                {/* Content */}
-                <div className="space-y-4 text-[10.5pt] text-justify">
-                   {aiCoverLetter ? (
-                      <>
-                        <p className="font-bold text-slate-900 mb-4">{aiCoverLetter.subject || `Application for ${raw.targetRole} position`}</p>
-                        <p className="mb-4">{aiCoverLetter.salutation}</p>
-                        <p className="mb-4">{aiCoverLetter.opening}</p>
-                        {aiCoverLetter.bodyParagraphs.map((para, idx) => (
-                          <p key={idx} className="mb-4">{para}</p>
-                        ))}
-                        <p className="mb-8 font-medium">{aiCoverLetter.closing}</p>
-                        <div className="mt-8">
-                          <p className="mb-2">{aiCoverLetter.signOff}</p>
-                          <p className="font-bold text-slate-900 text-lg font-serif">{raw.fullName}</p>
-                        </div>
-                      </>
-                   ) : (
-                      <div className="opacity-50 italic space-y-4">
-                         <p>{lang === 'fr' ? 'Cher Responsable du recrutement,' : 'Dear Hiring Manager,'}</p>
-                         <p>
-                           {lang === 'fr' 
-                             ? `Je vous écris pour exprimer mon vif intérêt pour le poste de ${raw.targetRole || "[Titre du poste]"} chez ${raw.companyName || "[Nom de l'entreprise]"}, tel qu'annoncé.`
-                             : `I am writing to express my strong interest in the ${raw.targetRole || "[Job Title]"} position at ${raw.companyName || "[Company Name]"}, as advertised.`
-                           }
-                         </p>
-                         <p>[Generate your cover letter to see a professional, persuasive argument tailored to your profile and the job description here...]</p>
-                         <p>{lang === 'fr' ? 'Cordialement,' : 'Sincerely,'}</p>
-                         <p>{raw.fullName}</p>
-                      </div>
-                   )}
+            <div className="flex-1 p-10 sm:p-14 print:p-12 text-slate-700 leading-relaxed">
+
+              {/* Date & Recipient Block */}
+              <div className="mb-8 break-inside-avoid">
+                <p className="mb-6 font-medium text-slate-500">{today}</p>
+
+                <div className="text-slate-900">
+                  <p className="font-bold">{raw.recipientName || "Hiring Manager"}</p>
+                  {raw.recipientRole && <p>{raw.recipientRole}</p>}
+                  <p className="font-bold mt-1">{raw.companyName || "Company Name"}</p>
+                  {raw.companyAddress && <p className="text-slate-500 text-sm whitespace-pre-line">{raw.companyAddress}</p>}
                 </div>
               </div>
 
-              {/* Footer for Corporate/Modern consistency */}
-              {(raw.template === 'cv-corporate' || raw.template === 'sidebar') && (
-                <div className="h-4 w-full print:hidden" style={{ backgroundColor: themeColor }}></div>
-              )}
-           </div>
+              {/* Content */}
+              <div className="space-y-4 text-[10.5pt] text-justify">
+                {aiCoverLetter ? (
+                  <>
+                    <p className="font-bold text-slate-900 mb-4">{aiCoverLetter.subject || `Application for ${raw.targetRole} position`}</p>
+                    <p className="mb-4">{aiCoverLetter.salutation}</p>
+                    <p className="mb-4">{aiCoverLetter.opening}</p>
+                    {aiCoverLetter.bodyParagraphs.map((para, idx) => (
+                      <p key={idx} className="mb-4">{para}</p>
+                    ))}
+                    <p className="mb-8 font-medium">{aiCoverLetter.closing}</p>
+                    <div className="mt-8">
+                      <p className="mb-2">{aiCoverLetter.signOff}</p>
+                      <p className="font-bold text-slate-900 text-lg font-serif">{raw.fullName}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="opacity-50 italic space-y-4">
+                    <p>{lang === 'fr' ? 'Cher Responsable du recrutement,' : 'Dear Hiring Manager,'}</p>
+                    <p>
+                      {lang === 'fr'
+                        ? `Je vous écris pour exprimer mon vif intérêt pour le poste de ${raw.targetRole || "[Titre du poste]"} chez ${raw.companyName || "[Nom de l'entreprise]"}, tel qu'annoncé.`
+                        : `I am writing to express my strong interest in the ${raw.targetRole || "[Job Title]"} position at ${raw.companyName || "[Company Name]"}, as advertised.`
+                      }
+                    </p>
+                    <p>[Generate your cover letter to see a professional, persuasive argument tailored to your profile and the job description here...]</p>
+                    <p>{lang === 'fr' ? 'Cordialement,' : 'Sincerely,'}</p>
+                    <p>{raw.fullName}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer for Corporate/Modern consistency */}
+            {(raw.template === 'cv-corporate' || raw.template === 'sidebar') && (
+              <div className="h-4 w-full print:hidden" style={{ backgroundColor: themeColor }}></div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -278,7 +383,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
   };
 
   const SectionTitle = ({ title, className = '' }: { title: string; className?: string }) => (
-    <h2 
+    <h2
       className={`text-sm font-bold uppercase tracking-widest mb-3 border-b pb-1 ${className}`}
       style={{ color: raw.template === 'modern' ? themeColor : '#64748b', borderColor: raw.template === 'modern' ? themeColor : '#e2e8f0' }}
     >
@@ -289,214 +394,214 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
   // --- TEMPLATE: CORPORATE CV (Top-Tier, Shaded Sidebar, Photo) ---
   if (raw.template === 'cv-corporate') {
     return (
-       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={ref} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible">
-            
+          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible">
+
             {/* Header Area */}
             {renderCorporateHeader()}
 
             <div className="flex flex-1 min-h-0 print:block">
-               {/* Left Column (Main) */}
-               <div className="flex-[2.2] p-10 pr-8 print:p-8 print:w-full">
-                  {dataToRender.summary && (
-                    <section className="mb-10 break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-3" style={{ color: themeColor }}>
-                         <span className="w-8 h-0.5 bg-slate-300"></span>
-                         {t.profile}
-                      </h2>
-                      <p className="text-sm leading-7 text-slate-700 text-justify">{dataToRender.summary}</p>
-                    </section>
-                  )}
+              {/* Left Column (Main) */}
+              <div className="flex-[2.2] p-10 pr-8 print:p-8 print:w-full">
+                {dataToRender.summary && (
+                  <section className="mb-10 break-inside-avoid">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-3" style={{ color: themeColor }}>
+                      <span className="w-8 h-0.5 bg-slate-300"></span>
+                      {t.profile}
+                    </h2>
+                    <p className="text-sm leading-7 text-slate-700 text-justify">{dataToRender.summary}</p>
+                  </section>
+                )}
 
-                  {dataToRender.experience.length > 0 && (
-                    <section className="mb-10">
-                       <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
-                         <span className="w-8 h-0.5 bg-slate-300"></span>
-                         {t.experience}
-                      </h2>
-                      <div className="space-y-8">
-                        {dataToRender.experience.map((exp, idx) => (
-                          <div key={idx} className="break-inside-avoid">
-                            <div className="flex justify-between items-baseline mb-1">
-                              <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
-                              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{exp.dates}</span>
-                            </div>
-                            <div className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                              {exp.company}
-                            </div>
-                            <ul className="list-disc list-outside ml-4 space-y-1.5">
-                              {exp.bullets.map((bullet, bIdx) => (
-                                <li key={bIdx} className="text-sm leading-relaxed text-slate-600 pl-1 text-justify">{bullet}</li>
-                              ))}
-                            </ul>
+                {dataToRender.experience.length > 0 && (
+                  <section className="mb-10">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
+                      <span className="w-8 h-0.5 bg-slate-300"></span>
+                      {t.experience}
+                    </h2>
+                    <div className="space-y-8">
+                      {dataToRender.experience.map((exp, idx) => (
+                        <div key={idx} className="break-inside-avoid">
+                          <div className="flex justify-between items-baseline mb-1">
+                            <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{exp.dates}</span>
                           </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-
-                  {dataToRender.internships.length > 0 && (
-                    <section className="mb-10">
-                       <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
-                         <span className="w-8 h-0.5 bg-slate-300"></span>
-                         {t.internships}
-                      </h2>
-                      <div className="space-y-8">
-                        {dataToRender.internships.map((exp, idx) => (
-                          <div key={idx} className="break-inside-avoid">
-                            <div className="flex justify-between items-baseline mb-1">
-                              <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
-                              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{exp.dates}</span>
-                            </div>
-                            <div className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                              {exp.company}
-                            </div>
-                            <ul className="list-disc list-outside ml-4 space-y-1.5">
-                              {exp.bullets.map((bullet, bIdx) => (
-                                <li key={bIdx} className="text-sm leading-relaxed text-slate-600 pl-1 text-justify">{bullet}</li>
-                              ))}
-                            </ul>
+                          <div className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            {exp.company}
                           </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
+                          <ul className="list-disc list-outside ml-4 space-y-1.5">
+                            {exp.bullets.map((bullet, bIdx) => (
+                              <li key={bIdx} className="text-sm leading-relaxed text-slate-600 pl-1 text-justify">{bullet}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-                  {dataToRender.projects.length > 0 && (
-                    <section className="mb-10">
-                       <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
-                         <span className="w-8 h-0.5 bg-slate-300"></span>
-                         {t.keyProjects}
-                      </h2>
-                      <div className="space-y-6">
-                         {dataToRender.projects.map((proj, idx) => (
-                           <div key={idx} className="break-inside-avoid">
-                             <h3 className="font-bold text-slate-900 text-sm flex justify-between items-center mb-1">
-                               <span>{proj.name}</span>
-                               <span className="text-slate-400 font-medium text-xs">{proj.dates}</span>
-                             </h3>
-                             {proj.link && <a href={proj.link} className="text-xs text-blue-600 hover:underline mb-2 block">{proj.link}</a>}
-                             <ul className="list-disc list-outside ml-4 mt-2 space-y-1.5">
-                              {proj.bullets.map((bullet, bIdx) => (
-                                <li key={bIdx} className="text-sm leading-relaxed text-slate-600 pl-1 text-justify">{bullet}</li>
-                              ))}
-                            </ul>
-                           </div>
-                         ))}
-                      </div>
-                    </section>
-                  )}
-                  
-                  {dataToRender.volunteering.length > 0 && (
-                    <section>
-                       <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
-                         <span className="w-8 h-0.5 bg-slate-300"></span>
-                         {t.volunteering}
-                      </h2>
-                      <div className="space-y-6">
-                         {dataToRender.volunteering.map((vol, idx) => (
-                           <div key={idx} className="break-inside-avoid">
-                             <div className="flex justify-between items-baseline mb-1">
-                               <h3 className="font-bold text-slate-900 text-sm">{vol.role}</h3>
-                               <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{vol.dates}</span>
-                             </div>
-                             <div className="text-sm font-medium text-slate-700 mb-2">{vol.company}</div>
-                             <ul className="list-disc list-outside ml-4 space-y-1.5">
-                              {vol.bullets.map((bullet, bIdx) => (
-                                <li key={bIdx} className="text-sm leading-relaxed text-slate-600 pl-1 text-justify">{bullet}</li>
-                              ))}
-                            </ul>
-                           </div>
-                         ))}
-                      </div>
-                    </section>
-                  )}
-               </div>
-
-               {/* Right Column (Sidebar) */}
-               <div className="flex-1 bg-slate-50 p-10 pl-6 border-l border-slate-100 print:bg-slate-50 print:p-8 print:pl-8 print:border-l-0 print:border-t print:w-full">
-                  {dataToRender.skills.length > 0 && (
-                    <section className="mb-8 break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.competencies}</h2>
-                      <div className="flex flex-wrap gap-2">
-                        {dataToRender.skills.map((skill, idx) => (
-                          <span key={idx} className="text-xs font-medium bg-white border border-slate-200 text-slate-700 px-2.5 py-1 rounded-md shadow-sm print:border-slate-300">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-
-                  {dataToRender.languages && dataToRender.languages.length > 0 && (
-                    <section className="mb-8 break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.languages}</h2>
-                      <ul className="space-y-2">
-                        {dataToRender.languages.map((langItem, idx) => (
-                          <li key={idx} className="text-sm text-slate-600 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 print:bg-slate-600"></span>
-                            {langItem}
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  )}
-
-                  {raw.education.length > 0 && (
-                    <section className="mb-8 break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.education}</h2>
-                      <div className="space-y-5">
-                        {raw.education.map((edu, idx) => (
-                          <div key={idx}>
-                            <div className="font-bold text-slate-900 text-sm leading-tight">{edu.school}</div>
-                            <div className="text-xs text-slate-600 mt-1 font-medium">{edu.degree}</div>
-                            <div className="text-xs text-slate-400 mt-1 italic">{edu.dates}</div>
+                {dataToRender.internships.length > 0 && (
+                  <section className="mb-10">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
+                      <span className="w-8 h-0.5 bg-slate-300"></span>
+                      {t.internships}
+                    </h2>
+                    <div className="space-y-8">
+                      {dataToRender.internships.map((exp, idx) => (
+                        <div key={idx} className="break-inside-avoid">
+                          <div className="flex justify-between items-baseline mb-1">
+                            <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{exp.dates}</span>
                           </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
+                          <div className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            {exp.company}
+                          </div>
+                          <ul className="list-disc list-outside ml-4 space-y-1.5">
+                            {exp.bullets.map((bullet, bIdx) => (
+                              <li key={bIdx} className="text-sm leading-relaxed text-slate-600 pl-1 text-justify">{bullet}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-                   {dataToRender.certifications && dataToRender.certifications.length > 0 && (
-                    <section className="mb-8 break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.certifications}</h2>
-                       <ul className="space-y-3">
-                        {dataToRender.certifications.map((cert, idx) => (
-                          <li key={idx} className="text-xs text-slate-600 leading-relaxed">
-                             {cert}
-                          </li>
-                        ))}
-                       </ul>
-                    </section>
-                  )}
-                  
-                  {dataToRender.publications && dataToRender.publications.length > 0 && (
-                    <section className="mb-8 break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.publications}</h2>
-                       <ul className="space-y-3">
-                        {dataToRender.publications.map((pub, idx) => (
-                          <li key={idx} className="text-xs text-slate-600 leading-relaxed italic">
-                             {pub}
-                          </li>
-                        ))}
-                       </ul>
-                    </section>
-                  )}
+                {dataToRender.projects.length > 0 && (
+                  <section className="mb-10">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
+                      <span className="w-8 h-0.5 bg-slate-300"></span>
+                      {t.keyProjects}
+                    </h2>
+                    <div className="space-y-6">
+                      {dataToRender.projects.map((proj, idx) => (
+                        <div key={idx} className="break-inside-avoid">
+                          <h3 className="font-bold text-slate-900 text-sm flex justify-between items-center mb-1">
+                            <span>{proj.name}</span>
+                            <span className="text-slate-400 font-medium text-xs">{proj.dates}</span>
+                          </h3>
+                          {proj.link && <a href={proj.link} className="text-xs text-blue-600 hover:underline mb-2 block">{proj.link}</a>}
+                          <ul className="list-disc list-outside ml-4 mt-2 space-y-1.5">
+                            {proj.bullets.map((bullet, bIdx) => (
+                              <li key={bIdx} className="text-sm leading-relaxed text-slate-600 pl-1 text-justify">{bullet}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-                  {dataToRender.achievements && dataToRender.achievements.length > 0 && (
-                    <section className="break-inside-avoid">
-                      <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.awards}</h2>
-                       <ul className="space-y-3">
-                        {dataToRender.achievements.map((ach, idx) => (
-                          <li key={idx} className="text-xs text-slate-600 leading-relaxed">
-                             {ach}
-                          </li>
-                        ))}
-                       </ul>
-                    </section>
-                  )}
-               </div>
+                {dataToRender.volunteering.length > 0 && (
+                  <section>
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
+                      <span className="w-8 h-0.5 bg-slate-300"></span>
+                      {t.volunteering}
+                    </h2>
+                    <div className="space-y-6">
+                      {dataToRender.volunteering.map((vol, idx) => (
+                        <div key={idx} className="break-inside-avoid">
+                          <div className="flex justify-between items-baseline mb-1">
+                            <h3 className="font-bold text-slate-900 text-sm">{vol.role}</h3>
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{vol.dates}</span>
+                          </div>
+                          <div className="text-sm font-medium text-slate-700 mb-2">{vol.company}</div>
+                          <ul className="list-disc list-outside ml-4 space-y-1.5">
+                            {vol.bullets.map((bullet, bIdx) => (
+                              <li key={bIdx} className="text-sm leading-relaxed text-slate-600 pl-1 text-justify">{bullet}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+
+              {/* Right Column (Sidebar) */}
+              <div className="flex-1 bg-slate-50 p-10 pl-6 border-l border-slate-100 print:bg-slate-50 print:p-8 print:pl-8 print:border-l-0 print:border-t print:w-full">
+                {dataToRender.skills.length > 0 && (
+                  <section className="mb-8 break-inside-avoid">
+                    <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.competencies}</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {dataToRender.skills.map((skill, idx) => (
+                        <span key={idx} className="text-xs font-medium bg-white border border-slate-200 text-slate-700 px-2.5 py-1 rounded-md shadow-sm print:border-slate-300">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {dataToRender.languages && dataToRender.languages.length > 0 && (
+                  <section className="mb-8 break-inside-avoid">
+                    <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.languages}</h2>
+                    <ul className="space-y-2">
+                      {dataToRender.languages.map((langItem, idx) => (
+                        <li key={idx} className="text-sm text-slate-600 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400 print:bg-slate-600"></span>
+                          {langItem}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {raw.education.length > 0 && (
+                  <section className="mb-8 break-inside-avoid">
+                    <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.education}</h2>
+                    <div className="space-y-5">
+                      {raw.education.map((edu, idx) => (
+                        <div key={idx}>
+                          <div className="font-bold text-slate-900 text-sm leading-tight">{edu.school}</div>
+                          <div className="text-xs text-slate-600 mt-1 font-medium">{edu.degree}</div>
+                          <div className="text-xs text-slate-400 mt-1 italic">{edu.dates}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {dataToRender.certifications && dataToRender.certifications.length > 0 && (
+                  <section className="mb-8 break-inside-avoid">
+                    <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.certifications}</h2>
+                    <ul className="space-y-3">
+                      {dataToRender.certifications.map((cert, idx) => (
+                        <li key={idx} className="text-xs text-slate-600 leading-relaxed">
+                          {cert}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {dataToRender.publications && dataToRender.publications.length > 0 && (
+                  <section className="mb-8 break-inside-avoid">
+                    <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.publications}</h2>
+                    <ul className="space-y-3">
+                      {dataToRender.publications.map((pub, idx) => (
+                        <li key={idx} className="text-xs text-slate-600 leading-relaxed italic">
+                          {pub}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {dataToRender.achievements && dataToRender.achievements.length > 0 && (
+                  <section className="break-inside-avoid">
+                    <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.awards}</h2>
+                    <ul className="space-y-3">
+                      {dataToRender.achievements.map((ach, idx) => (
+                        <li key={idx} className="text-xs text-slate-600 leading-relaxed">
+                          {ach}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -509,20 +614,20 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={ref} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 font-serif mx-auto box-border print:w-full print:min-h-0 print:p-[15mm] print:h-auto print:overflow-visible">
-            
+          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 font-serif mx-auto box-border print:w-full print:min-h-0 print:p-[15mm] print:h-auto print:overflow-visible">
+
             {/* Header - Centered & Formal */}
             <header className="mb-10 text-center border-b-2 border-slate-900 pb-8 relative break-inside-avoid">
-               {raw.photo && (
+              {raw.photo && (
                 <div className="absolute top-0 right-0 w-24 h-24 border border-slate-200 p-1 bg-white hidden sm:block print:block">
-                   <img src={raw.photo} alt="Profile" className="w-full h-full object-cover grayscale" />
+                  <img src={raw.photo} alt="Profile" className="w-full h-full object-cover grayscale" />
                 </div>
               )}
-              
+
               <h1 className="text-3xl font-bold uppercase tracking-wider mb-4 text-slate-900">
                 {raw.fullName || "Your Name"}
               </h1>
-              
+
               <div className="text-sm text-slate-700 flex flex-wrap justify-center gap-x-4 gap-y-1 max-w-2xl mx-auto">
                 {raw.location && <span>{raw.location}</span>}
                 {raw.email && <span>• {raw.email}</span>}
@@ -609,9 +714,9 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
               <section className="mb-8 break-inside-avoid">
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.publications}</h2>
                 <ul className="list-decimal list-outside ml-5 space-y-3">
-                   {dataToRender.publications.map((pub, idx) => (
-                     <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1 text-justify">{pub}</li>
-                   ))}
+                  {dataToRender.publications.map((pub, idx) => (
+                    <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1 text-justify">{pub}</li>
+                  ))}
                 </ul>
               </section>
             )}
@@ -621,21 +726,21 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
               <section className="mb-8">
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.research}</h2>
                 <div className="space-y-5">
-                   {dataToRender.projects.map((proj, idx) => (
-                     <div key={idx} className="break-inside-avoid">
-                       <div className="flex justify-between items-baseline mb-1">
-                         <h3 className="font-bold text-slate-900">
-                           {proj.name} {proj.link && <a href={proj.link} target="_blank" rel="noreferrer" className="text-xs font-normal underline ml-1 text-slate-600">[Link]</a>}
-                         </h3>
-                         <span className="text-sm text-slate-700 font-medium">{proj.dates}</span>
-                       </div>
-                       <ul className="list-disc list-outside ml-5 space-y-1">
+                  {dataToRender.projects.map((proj, idx) => (
+                    <div key={idx} className="break-inside-avoid">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <h3 className="font-bold text-slate-900">
+                          {proj.name} {proj.link && <a href={proj.link} target="_blank" rel="noreferrer" className="text-xs font-normal underline ml-1 text-slate-600">[Link]</a>}
+                        </h3>
+                        <span className="text-sm text-slate-700 font-medium">{proj.dates}</span>
+                      </div>
+                      <ul className="list-disc list-outside ml-5 space-y-1">
                         {proj.bullets.map((bullet, bIdx) => (
                           <li key={bIdx} className="text-sm leading-relaxed text-slate-800 pl-1 text-justify">{bullet}</li>
                         ))}
                       </ul>
-                     </div>
-                   ))}
+                    </div>
+                  ))}
                 </div>
               </section>
             )}
@@ -665,48 +770,48 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
             {/* Certifications */}
             {dataToRender.certifications && dataToRender.certifications.length > 0 && (
-               <section className="mb-8 break-inside-avoid">
+              <section className="mb-8 break-inside-avoid">
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.certifications}</h2>
                 <ul className="list-disc list-outside ml-5 space-y-1.5">
-                   {dataToRender.certifications.map((cert, idx) => (
-                     <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1">{cert}</li>
-                   ))}
+                  {dataToRender.certifications.map((cert, idx) => (
+                    <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1">{cert}</li>
+                  ))}
                 </ul>
               </section>
             )}
 
             {/* Languages & Skills */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 break-inside-avoid">
-                {dataToRender.languages && dataToRender.languages.length > 0 && (
-                  <section>
-                    <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.languages}</h2>
-                    <ul className="list-none space-y-1">
-                      {dataToRender.languages.map((langItem, idx) => (
-                        <li key={idx} className="text-sm leading-relaxed text-slate-800">{langItem}</li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
-                
-                {dataToRender.skills.length > 0 && (
-                  <section>
-                    <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.skills}</h2>
-                    <p className="text-sm leading-relaxed text-slate-800">
-                      {dataToRender.skills.join(' • ')}
-                    </p>
-                  </section>
-                )}
+              {dataToRender.languages && dataToRender.languages.length > 0 && (
+                <section>
+                  <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.languages}</h2>
+                  <ul className="list-none space-y-1">
+                    {dataToRender.languages.map((langItem, idx) => (
+                      <li key={idx} className="text-sm leading-relaxed text-slate-800">{langItem}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {dataToRender.skills.length > 0 && (
+                <section>
+                  <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.skills}</h2>
+                  <p className="text-sm leading-relaxed text-slate-800">
+                    {dataToRender.skills.join(' • ')}
+                  </p>
+                </section>
+              )}
             </div>
-            
+
             {/* Achievements */}
             {dataToRender.achievements && dataToRender.achievements.length > 0 && (
               <section className="mt-8 break-inside-avoid">
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.awards}</h2>
-                 <ul className="list-disc list-outside ml-5 space-y-1">
-                    {dataToRender.achievements.map((ach, idx) => (
-                      <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1">{ach}</li>
-                    ))}
-                 </ul>
+                <ul className="list-disc list-outside ml-5 space-y-1">
+                  {dataToRender.achievements.map((ach, idx) => (
+                    <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1">{ach}</li>
+                  ))}
+                </ul>
               </section>
             )}
           </div>
@@ -720,205 +825,205 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={ref} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[15mm] print:h-auto print:overflow-visible">
-            
+          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[15mm] print:h-auto print:overflow-visible">
+
             {renderExecutiveHeader()}
 
             {dataToRender.summary && (
               <section className="mb-10 break-inside-avoid">
                 <h2 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-3" style={{ color: themeColor }}>
-                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                   {t.profile}
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
+                  {t.profile}
                 </h2>
                 <p className="text-sm leading-relaxed text-slate-700">{dataToRender.summary}</p>
               </section>
             )}
 
             <div className="grid grid-cols-3 gap-8">
-               {/* Main Column */}
-               <div className="col-span-2">
-                  {dataToRender.experience.length > 0 && (
-                    <section className="mb-10">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                        {t.experience}
-                      </h2>
-                      <div className="space-y-8">
-                        {dataToRender.experience.map((exp, idx) => (
-                          <div key={idx} className="break-inside-avoid">
-                            <div className="flex justify-between items-baseline mb-1">
-                              <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
-                              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{exp.dates}</span>
-                            </div>
-                            <div className="text-sm font-semibold text-slate-600 mb-3">{exp.company}</div>
-                            <ul className="list-none space-y-2">
-                              {exp.bullets.map((bullet, bIdx) => (
-                                <li key={bIdx} className="text-sm leading-relaxed text-slate-600 relative pl-4 before:content-['•'] before:absolute before:left-0 before:text-slate-400">
-                                  {bullet}
-                                </li>
-                              ))}
-                            </ul>
+              {/* Main Column */}
+              <div className="col-span-2">
+                {dataToRender.experience.length > 0 && (
+                  <section className="mb-10">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
+                      {t.experience}
+                    </h2>
+                    <div className="space-y-8">
+                      {dataToRender.experience.map((exp, idx) => (
+                        <div key={idx} className="break-inside-avoid">
+                          <div className="flex justify-between items-baseline mb-1">
+                            <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{exp.dates}</span>
                           </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
+                          <div className="text-sm font-semibold text-slate-600 mb-3">{exp.company}</div>
+                          <ul className="list-none space-y-2">
+                            {exp.bullets.map((bullet, bIdx) => (
+                              <li key={bIdx} className="text-sm leading-relaxed text-slate-600 relative pl-4 before:content-['•'] before:absolute before:left-0 before:text-slate-400">
+                                {bullet}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-                  {dataToRender.internships.length > 0 && (
-                    <section className="mb-10">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                        {t.internships}
-                      </h2>
-                      <div className="space-y-8">
-                        {dataToRender.internships.map((exp, idx) => (
-                          <div key={idx} className="break-inside-avoid">
-                            <div className="flex justify-between items-baseline mb-1">
-                              <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
-                              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{exp.dates}</span>
-                            </div>
-                            <div className="text-sm font-semibold text-slate-600 mb-3">{exp.company}</div>
-                            <ul className="list-none space-y-2">
-                              {exp.bullets.map((bullet, bIdx) => (
-                                <li key={bIdx} className="text-sm leading-relaxed text-slate-600 relative pl-4 before:content-['•'] before:absolute before:left-0 before:text-slate-400">
-                                  {bullet}
-                                </li>
-                              ))}
-                            </ul>
+                {dataToRender.internships.length > 0 && (
+                  <section className="mb-10">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
+                      {t.internships}
+                    </h2>
+                    <div className="space-y-8">
+                      {dataToRender.internships.map((exp, idx) => (
+                        <div key={idx} className="break-inside-avoid">
+                          <div className="flex justify-between items-baseline mb-1">
+                            <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{exp.dates}</span>
                           </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
+                          <div className="text-sm font-semibold text-slate-600 mb-3">{exp.company}</div>
+                          <ul className="list-none space-y-2">
+                            {exp.bullets.map((bullet, bIdx) => (
+                              <li key={bIdx} className="text-sm leading-relaxed text-slate-600 relative pl-4 before:content-['•'] before:absolute before:left-0 before:text-slate-400">
+                                {bullet}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-                  {dataToRender.projects.length > 0 && (
-                    <section className="mb-10">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                        {t.keyProjects}
-                      </h2>
-                      <div className="space-y-6">
-                         {dataToRender.projects.map((proj, idx) => (
-                           <div key={idx} className="break-inside-avoid">
-                             <h3 className="font-bold text-slate-900 text-sm flex justify-between">
-                               <span>{proj.name}</span>
-                               <span className="text-slate-400 font-normal text-xs">{proj.dates}</span>
-                             </h3>
-                             {proj.link && <a href={proj.link} className="text-xs text-blue-600 hover:underline mb-2 block">{proj.link}</a>}
-                             <ul className="list-none space-y-1 mt-2">
-                              {proj.bullets.map((bullet, bIdx) => (
-                                <li key={bIdx} className="text-sm leading-relaxed text-slate-600 relative pl-4 before:content-['•'] before:absolute before:left-0 before:text-slate-400">{bullet}</li>
-                              ))}
-                            </ul>
-                           </div>
-                         ))}
-                      </div>
-                    </section>
-                  )}
-                  
-                   {dataToRender.volunteering.length > 0 && (
-                    <section className="mb-10">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                        {t.volunteering}
-                      </h2>
-                      <div className="space-y-6">
-                         {dataToRender.volunteering.map((vol, idx) => (
-                           <div key={idx} className="break-inside-avoid">
-                             <div className="flex justify-between items-baseline mb-1">
-                               <h3 className="font-bold text-slate-900 text-sm">{vol.role}</h3>
-                               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{vol.dates}</span>
-                             </div>
-                             <div className="text-sm font-semibold text-slate-600 mb-2">{vol.company}</div>
-                             <ul className="list-none space-y-1 mt-2">
-                              {vol.bullets.map((bullet, bIdx) => (
-                                <li key={bIdx} className="text-sm leading-relaxed text-slate-600 relative pl-4 before:content-['•'] before:absolute before:left-0 before:text-slate-400">{bullet}</li>
-                              ))}
-                            </ul>
-                           </div>
-                         ))}
-                      </div>
-                    </section>
-                  )}
+                {dataToRender.projects.length > 0 && (
+                  <section className="mb-10">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
+                      {t.keyProjects}
+                    </h2>
+                    <div className="space-y-6">
+                      {dataToRender.projects.map((proj, idx) => (
+                        <div key={idx} className="break-inside-avoid">
+                          <h3 className="font-bold text-slate-900 text-sm flex justify-between">
+                            <span>{proj.name}</span>
+                            <span className="text-slate-400 font-normal text-xs">{proj.dates}</span>
+                          </h3>
+                          {proj.link && <a href={proj.link} className="text-xs text-blue-600 hover:underline mb-2 block">{proj.link}</a>}
+                          <ul className="list-none space-y-1 mt-2">
+                            {proj.bullets.map((bullet, bIdx) => (
+                              <li key={bIdx} className="text-sm leading-relaxed text-slate-600 relative pl-4 before:content-['•'] before:absolute before:left-0 before:text-slate-400">{bullet}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-                   {dataToRender.publications && dataToRender.publications.length > 0 && (
-                    <section className="mb-10 break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-3" style={{ color: themeColor }}>
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
-                        {t.publications}
-                      </h2>
-                       <ul className="list-none space-y-2">
-                        {dataToRender.publications.map((pub, idx) => (
-                          <li key={idx} className="text-sm leading-relaxed text-slate-600">{pub}</li>
-                        ))}
-                      </ul>
-                    </section>
-                  )}
-               </div>
-
-               {/* Side Column */}
-               <div className="col-span-1 space-y-10">
-                  {raw.education.length > 0 && (
-                    <section className="break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.education}</h2>
-                      <div className="space-y-4">
-                        {raw.education.map((edu, idx) => (
-                          <div key={idx}>
-                            <div className="font-bold text-slate-900 text-sm">{edu.school}</div>
-                            <div className="text-sm text-slate-600">{edu.degree}</div>
-                            <div className="text-xs text-slate-400 mt-1">{edu.dates}</div>
+                {dataToRender.volunteering.length > 0 && (
+                  <section className="mb-10">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: themeColor }}>
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
+                      {t.volunteering}
+                    </h2>
+                    <div className="space-y-6">
+                      {dataToRender.volunteering.map((vol, idx) => (
+                        <div key={idx} className="break-inside-avoid">
+                          <div className="flex justify-between items-baseline mb-1">
+                            <h3 className="font-bold text-slate-900 text-sm">{vol.role}</h3>
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{vol.dates}</span>
                           </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
+                          <div className="text-sm font-semibold text-slate-600 mb-2">{vol.company}</div>
+                          <ul className="list-none space-y-1 mt-2">
+                            {vol.bullets.map((bullet, bIdx) => (
+                              <li key={bIdx} className="text-sm leading-relaxed text-slate-600 relative pl-4 before:content-['•'] before:absolute before:left-0 before:text-slate-400">{bullet}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-                  {dataToRender.skills.length > 0 && (
-                    <section className="break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.expertise}</h2>
-                      <div className="flex flex-col gap-2">
-                        {dataToRender.skills.map((skill, idx) => (
-                          <span key={idx} className="text-sm text-slate-600 font-medium">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </section>
-                  )}
+                {dataToRender.publications && dataToRender.publications.length > 0 && (
+                  <section className="mb-10 break-inside-avoid">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-3" style={{ color: themeColor }}>
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: themeColor }}></span>
+                      {t.publications}
+                    </h2>
+                    <ul className="list-none space-y-2">
+                      {dataToRender.publications.map((pub, idx) => (
+                        <li key={idx} className="text-sm leading-relaxed text-slate-600">{pub}</li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
 
-                  {dataToRender.languages && dataToRender.languages.length > 0 && (
-                    <section className="break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.languages}</h2>
-                      <ul className="space-y-2">
-                        {dataToRender.languages.map((langItem, idx) => (
-                          <li key={idx} className="text-sm text-slate-600">{langItem}</li>
-                        ))}
-                      </ul>
-                    </section>
-                  )}
+              {/* Side Column */}
+              <div className="col-span-1 space-y-10">
+                {raw.education.length > 0 && (
+                  <section className="break-inside-avoid">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.education}</h2>
+                    <div className="space-y-4">
+                      {raw.education.map((edu, idx) => (
+                        <div key={idx}>
+                          <div className="font-bold text-slate-900 text-sm">{edu.school}</div>
+                          <div className="text-sm text-slate-600">{edu.degree}</div>
+                          <div className="text-xs text-slate-400 mt-1">{edu.dates}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-                  {dataToRender.certifications && dataToRender.certifications.length > 0 && (
-                    <section className="break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.credentials}</h2>
-                       <ul className="space-y-2">
-                        {dataToRender.certifications.map((cert, idx) => (
-                          <li key={idx} className="text-sm text-slate-600">{cert}</li>
-                        ))}
-                       </ul>
-                    </section>
-                  )}
+                {dataToRender.skills.length > 0 && (
+                  <section className="break-inside-avoid">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.expertise}</h2>
+                    <div className="flex flex-col gap-2">
+                      {dataToRender.skills.map((skill, idx) => (
+                        <span key={idx} className="text-sm text-slate-600 font-medium">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-                  {dataToRender.achievements && dataToRender.achievements.length > 0 && (
-                    <section className="break-inside-avoid">
-                      <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.honors}</h2>
-                       <ul className="space-y-2">
-                        {dataToRender.achievements.map((ach, idx) => (
-                          <li key={idx} className="text-sm text-slate-600 italic">"{ach}"</li>
-                        ))}
-                       </ul>
-                    </section>
-                  )}
-               </div>
+                {dataToRender.languages && dataToRender.languages.length > 0 && (
+                  <section className="break-inside-avoid">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.languages}</h2>
+                    <ul className="space-y-2">
+                      {dataToRender.languages.map((langItem, idx) => (
+                        <li key={idx} className="text-sm text-slate-600">{langItem}</li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {dataToRender.certifications && dataToRender.certifications.length > 0 && (
+                  <section className="break-inside-avoid">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.credentials}</h2>
+                    <ul className="space-y-2">
+                      {dataToRender.certifications.map((cert, idx) => (
+                        <li key={idx} className="text-sm text-slate-600">{cert}</li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {dataToRender.achievements && dataToRender.achievements.length > 0 && (
+                  <section className="break-inside-avoid">
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-4 pb-2 border-b border-slate-200" style={{ color: themeColor }}>{t.honors}</h2>
+                    <ul className="space-y-2">
+                      {dataToRender.achievements.map((ach, idx) => (
+                        <li key={idx} className="text-sm text-slate-600 italic">"{ach}"</li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -931,8 +1036,8 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={ref} className="w-[210mm] min-h-[297mm] bg-white p-[15mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[10mm] print:h-auto print:overflow-visible">
-            
+          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white p-[15mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[10mm] print:h-auto print:overflow-visible">
+
             {renderClassicHeader()}
 
             {dataToRender.summary && (
@@ -990,43 +1095,43 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
               <section className="mb-6">
                 <SectionTitle title={t.projects} />
                 <div className="space-y-4">
-                   {dataToRender.projects.map((proj, idx) => (
-                     <div key={idx} className="break-inside-avoid">
-                       <div className="flex justify-between items-baseline mb-1">
-                         <h3 className="font-bold text-slate-900">
-                           {proj.name} {proj.link && <a href={proj.link} target="_blank" rel="noreferrer" className="text-xs font-normal underline ml-1" style={{ color: themeColor }}>Link ↗</a>}
-                         </h3>
-                         <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{proj.dates}</span>
-                       </div>
-                       <ul className="list-disc list-outside ml-4 space-y-1">
+                  {dataToRender.projects.map((proj, idx) => (
+                    <div key={idx} className="break-inside-avoid">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <h3 className="font-bold text-slate-900">
+                          {proj.name} {proj.link && <a href={proj.link} target="_blank" rel="noreferrer" className="text-xs font-normal underline ml-1" style={{ color: themeColor }}>Link ↗</a>}
+                        </h3>
+                        <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{proj.dates}</span>
+                      </div>
+                      <ul className="list-disc list-outside ml-4 space-y-1">
                         {proj.bullets.map((bullet, bIdx) => (
                           <li key={bIdx} className="text-sm leading-relaxed text-slate-700 pl-1">{bullet}</li>
                         ))}
                       </ul>
-                     </div>
-                   ))}
+                    </div>
+                  ))}
                 </div>
               </section>
             )}
-            
+
             {dataToRender.volunteering.length > 0 && (
               <section className="mb-6">
                 <SectionTitle title={t.volunteering} />
                 <div className="space-y-4">
-                   {dataToRender.volunteering.map((vol, idx) => (
-                     <div key={idx} className="break-inside-avoid">
-                       <div className="flex justify-between items-baseline mb-1">
-                         <h3 className="font-bold text-slate-900">{vol.role}</h3>
-                         <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{vol.dates}</span>
-                       </div>
-                       <div className="text-slate-700 font-medium mb-2" style={{ color: themeColor }}>{vol.company}</div>
-                       <ul className="list-disc list-outside ml-4 space-y-1">
+                  {dataToRender.volunteering.map((vol, idx) => (
+                    <div key={idx} className="break-inside-avoid">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <h3 className="font-bold text-slate-900">{vol.role}</h3>
+                        <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{vol.dates}</span>
+                      </div>
+                      <div className="text-slate-700 font-medium mb-2" style={{ color: themeColor }}>{vol.company}</div>
+                      <ul className="list-disc list-outside ml-4 space-y-1">
                         {vol.bullets.map((bullet, bIdx) => (
                           <li key={bIdx} className="text-sm leading-relaxed text-slate-700 pl-1">{bullet}</li>
                         ))}
                       </ul>
-                     </div>
-                   ))}
+                    </div>
+                  ))}
                 </div>
               </section>
             )}
@@ -1048,14 +1153,14 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
               </section>
             )}
 
-             {dataToRender.achievements && dataToRender.achievements.length > 0 && (
+            {dataToRender.achievements && dataToRender.achievements.length > 0 && (
               <section className="mb-6 break-inside-avoid">
                 <SectionTitle title={t.awards} />
-                 <ul className="list-disc list-outside ml-4 space-y-1">
-                    {dataToRender.achievements.map((ach, idx) => (
-                      <li key={idx} className="text-sm leading-relaxed text-slate-700 pl-1">{ach}</li>
-                    ))}
-                 </ul>
+                <ul className="list-disc list-outside ml-4 space-y-1">
+                  {dataToRender.achievements.map((ach, idx) => (
+                    <li key={idx} className="text-sm leading-relaxed text-slate-700 pl-1">{ach}</li>
+                  ))}
+                </ul>
               </section>
             )}
 
@@ -1082,7 +1187,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={ref} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:h-auto print:overflow-visible flex flex-col">
+          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:h-auto print:overflow-visible flex flex-col">
             {/* Header */}
             {renderModernHeader()}
 
@@ -1114,7 +1219,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     </div>
                   </div>
                 )}
-                
+
                 {dataToRender.internships.length > 0 && (
                   <div className="mb-8">
                     <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.internships}</h2>
@@ -1138,19 +1243,19 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                   <div className="mb-8">
                     <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.projects}</h2>
                     <div className="space-y-5">
-                       {dataToRender.projects.map((proj, idx) => (
-                         <div key={idx} className="break-inside-avoid">
-                           <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                             {proj.name}
-                             {proj.link && <a href={proj.link} target="_blank" rel="noreferrer" className="text-xs underline opacity-70 hover:opacity-100">Link</a>}
-                           </h3>
-                           <ul className="list-disc list-outside ml-4 mt-2 space-y-1">
+                      {dataToRender.projects.map((proj, idx) => (
+                        <div key={idx} className="break-inside-avoid">
+                          <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                            {proj.name}
+                            {proj.link && <a href={proj.link} target="_blank" rel="noreferrer" className="text-xs underline opacity-70 hover:opacity-100">Link</a>}
+                          </h3>
+                          <ul className="list-disc list-outside ml-4 mt-2 space-y-1">
                             {proj.bullets.map((bullet, bIdx) => (
                               <li key={bIdx} className="text-sm leading-relaxed text-slate-600 pl-1">{bullet}</li>
                             ))}
                           </ul>
-                         </div>
-                       ))}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -1159,17 +1264,17 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                   <div>
                     <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.volunteering}</h2>
                     <div className="space-y-5">
-                       {dataToRender.volunteering.map((vol, idx) => (
-                         <div key={idx} className="break-inside-avoid">
-                           <h3 className="font-bold text-slate-900">{vol.role}</h3>
-                           <div className="text-slate-600 font-medium text-sm mb-2">{vol.company}</div>
-                           <ul className="list-disc list-outside ml-4 mt-2 space-y-1">
+                      {dataToRender.volunteering.map((vol, idx) => (
+                        <div key={idx} className="break-inside-avoid">
+                          <h3 className="font-bold text-slate-900">{vol.role}</h3>
+                          <div className="text-slate-600 font-medium text-sm mb-2">{vol.company}</div>
+                          <ul className="list-disc list-outside ml-4 mt-2 space-y-1">
                             {vol.bullets.map((bullet, bIdx) => (
                               <li key={bIdx} className="text-sm leading-relaxed text-slate-600 pl-1">{bullet}</li>
                             ))}
                           </ul>
-                         </div>
-                       ))}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -1228,180 +1333,180 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={ref} className="w-[210mm] min-h-[297mm] bg-white p-[15mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[10mm] print:h-auto print:overflow-visible">
+          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white p-[15mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[10mm] print:h-auto print:overflow-visible">
             {/* Header */}
             <div className="text-center border-b-2 pb-6 mb-8 break-inside-avoid" style={{ borderColor: themeColor }}>
               <h1 className="text-3xl font-serif font-bold text-slate-900 mb-3 uppercase tracking-wider">
                 {raw.fullName || "Your Name"}
               </h1>
               <div className="text-sm text-slate-500 flex flex-wrap justify-center gap-4">
-                 {raw.location && <span>{raw.location}</span>}
-                 {raw.email && <span>{raw.email}</span>}
-                 {raw.phone && <span>{raw.phone}</span>}
-                 {raw.linkedin && <span>{raw.linkedin}</span>}
-                 {raw.website && <span>{raw.website}</span>}
+                {raw.location && <span>{raw.location}</span>}
+                {raw.email && <span>{raw.email}</span>}
+                {raw.phone && <span>{raw.phone}</span>}
+                {raw.linkedin && <span>{raw.linkedin}</span>}
+                {raw.website && <span>{raw.website}</span>}
               </div>
             </div>
 
             {/* Content */}
             <div className="space-y-8">
-               {dataToRender.summary && (
+              {dataToRender.summary && (
                 <div className="text-center max-w-2xl mx-auto break-inside-avoid">
-                   <p className="text-sm leading-relaxed text-slate-700 italic">{dataToRender.summary}</p>
+                  <p className="text-sm leading-relaxed text-slate-700 italic">{dataToRender.summary}</p>
                 </div>
-               )}
+              )}
 
-               {/* Experience */}
-               {dataToRender.experience.length > 0 && (
-                 <div>
-                    <div className="flex items-center mb-4 break-inside-avoid">
-                      <div className="h-px flex-1 bg-slate-200"></div>
-                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.experience}</h2>
-                      <div className="h-px flex-1 bg-slate-200"></div>
-                    </div>
-                    <div className="space-y-6">
-                      {dataToRender.experience.map((exp, idx) => (
-                        <div key={idx} className="break-inside-avoid">
-                          <div className="flex justify-between items-end mb-2">
-                            <div>
-                              <h3 className="font-bold text-slate-900 text-lg">{exp.role}</h3>
-                              <div className="text-sm font-medium" style={{ color: themeColor }}>{exp.company}</div>
-                            </div>
-                            <span className="text-sm text-slate-500 italic">{exp.dates}</span>
-                          </div>
-                           <ul className="list-disc list-outside ml-4 space-y-1">
-                            {exp.bullets.map((bullet, bIdx) => (
-                              <li key={bIdx} className="text-sm leading-relaxed text-slate-700 pl-1">{bullet}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                 </div>
-               )}
-
-               {/* Internships */}
-               {dataToRender.internships.length > 0 && (
-                 <div>
-                    <div className="flex items-center mb-4 break-inside-avoid">
-                      <div className="h-px flex-1 bg-slate-200"></div>
-                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.internships}</h2>
-                      <div className="h-px flex-1 bg-slate-200"></div>
-                    </div>
-                    <div className="space-y-6">
-                      {dataToRender.internships.map((exp, idx) => (
-                        <div key={idx} className="break-inside-avoid">
-                          <div className="flex justify-between items-end mb-2">
-                            <div>
-                              <h3 className="font-bold text-slate-900 text-lg">{exp.role}</h3>
-                              <div className="text-sm font-medium" style={{ color: themeColor }}>{exp.company}</div>
-                            </div>
-                            <span className="text-sm text-slate-500 italic">{exp.dates}</span>
-                          </div>
-                           <ul className="list-disc list-outside ml-4 space-y-1">
-                            {exp.bullets.map((bullet, bIdx) => (
-                              <li key={bIdx} className="text-sm leading-relaxed text-slate-700 pl-1">{bullet}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                 </div>
-               )}
-
-               {/* Projects */}
-               {dataToRender.projects.length > 0 && (
-                 <div>
-                    <div className="flex items-center mb-4 break-inside-avoid">
-                      <div className="h-px flex-1 bg-slate-200"></div>
-                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.projects}</h2>
-                      <div className="h-px flex-1 bg-slate-200"></div>
-                    </div>
-                    <div className="grid grid-cols-1 gap-6">
-                       {dataToRender.projects.map((proj, idx) => (
-                         <div key={idx} className="break-inside-avoid">
-                            <div className="flex justify-between items-baseline mb-1">
-                              <h3 className="font-bold text-slate-900">{proj.name}</h3>
-                              <span className="text-sm text-slate-500">{proj.dates}</span>
-                            </div>
-                            <p className="text-xs text-blue-600 mb-2">{proj.link}</p>
-                             <ul className="list-disc list-outside ml-4 space-y-1">
-                              {proj.bullets.map((bullet, bIdx) => (
-                                <li key={bIdx} className="text-sm leading-relaxed text-slate-700 pl-1">{bullet}</li>
-                              ))}
-                            </ul>
-                         </div>
-                       ))}
-                    </div>
-                 </div>
-               )}
-               
-               {/* Volunteering */}
-               {dataToRender.volunteering.length > 0 && (
-                 <div>
-                    <div className="flex items-center mb-4 break-inside-avoid">
-                      <div className="h-px flex-1 bg-slate-200"></div>
-                      <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.volunteering}</h2>
-                      <div className="h-px flex-1 bg-slate-200"></div>
-                    </div>
-                    <div className="grid grid-cols-1 gap-6">
-                       {dataToRender.volunteering.map((vol, idx) => (
-                         <div key={idx} className="break-inside-avoid">
-                            <div className="flex justify-between items-baseline mb-1">
-                              <h3 className="font-bold text-slate-900">{vol.role}</h3>
-                              <span className="text-sm text-slate-500">{vol.dates}</span>
-                            </div>
-                            <div className="text-sm font-medium" style={{ color: themeColor }}>{vol.company}</div>
-                             <ul className="list-disc list-outside ml-4 space-y-1">
-                              {vol.bullets.map((bullet, bIdx) => (
-                                <li key={bIdx} className="text-sm leading-relaxed text-slate-700 pl-1">{bullet}</li>
-                              ))}
-                            </ul>
-                         </div>
-                       ))}
-                    </div>
-                 </div>
-               )}
-
-               {/* Education & Skills Row */}
-               <div className="grid grid-cols-2 gap-8 break-inside-avoid">
-                 {raw.education.length > 0 && (
-                   <div>
-                      <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">{t.education}</h2>
-                      <div className="space-y-4">
-                        {raw.education.map((edu, idx) => (
-                          <div key={idx} className="text-center">
-                            <div className="font-bold text-slate-900">{edu.school}</div>
-                            <div className="text-sm text-slate-700">{edu.degree}</div>
-                            <div className="text-xs text-slate-500 mt-1">{edu.dates}</div>
-                          </div>
-                        ))}
-                      </div>
-                   </div>
-                 )}
-                 
-                 {dataToRender.skills.length > 0 && (
-                   <div>
-                      <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">{t.skills}</h2>
-                      <div className="flex flex-wrap justify-center gap-2">
-                         {dataToRender.skills.map((skill, idx) => (
-                            <span key={idx} className="text-sm text-slate-700 font-medium border-b border-slate-200 pb-0.5">{skill}</span>
-                         ))}
-                      </div>
-                   </div>
-                 )}
-               </div>
-
-                 {dataToRender.achievements && dataToRender.achievements.length > 0 && (
-                  <div className="break-inside-avoid">
-                     <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">{t.awards}</h2>
-                     <ul className="list-none text-center space-y-1">
-                        {dataToRender.achievements.map((ach, idx) => (
-                          <li key={idx} className="text-sm text-slate-700">{ach}</li>
-                        ))}
-                     </ul>
+              {/* Experience */}
+              {dataToRender.experience.length > 0 && (
+                <div>
+                  <div className="flex items-center mb-4 break-inside-avoid">
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                    <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.experience}</h2>
+                    <div className="h-px flex-1 bg-slate-200"></div>
                   </div>
-                 )}
+                  <div className="space-y-6">
+                    {dataToRender.experience.map((exp, idx) => (
+                      <div key={idx} className="break-inside-avoid">
+                        <div className="flex justify-between items-end mb-2">
+                          <div>
+                            <h3 className="font-bold text-slate-900 text-lg">{exp.role}</h3>
+                            <div className="text-sm font-medium" style={{ color: themeColor }}>{exp.company}</div>
+                          </div>
+                          <span className="text-sm text-slate-500 italic">{exp.dates}</span>
+                        </div>
+                        <ul className="list-disc list-outside ml-4 space-y-1">
+                          {exp.bullets.map((bullet, bIdx) => (
+                            <li key={bIdx} className="text-sm leading-relaxed text-slate-700 pl-1">{bullet}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Internships */}
+              {dataToRender.internships.length > 0 && (
+                <div>
+                  <div className="flex items-center mb-4 break-inside-avoid">
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                    <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.internships}</h2>
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                  </div>
+                  <div className="space-y-6">
+                    {dataToRender.internships.map((exp, idx) => (
+                      <div key={idx} className="break-inside-avoid">
+                        <div className="flex justify-between items-end mb-2">
+                          <div>
+                            <h3 className="font-bold text-slate-900 text-lg">{exp.role}</h3>
+                            <div className="text-sm font-medium" style={{ color: themeColor }}>{exp.company}</div>
+                          </div>
+                          <span className="text-sm text-slate-500 italic">{exp.dates}</span>
+                        </div>
+                        <ul className="list-disc list-outside ml-4 space-y-1">
+                          {exp.bullets.map((bullet, bIdx) => (
+                            <li key={bIdx} className="text-sm leading-relaxed text-slate-700 pl-1">{bullet}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Projects */}
+              {dataToRender.projects.length > 0 && (
+                <div>
+                  <div className="flex items-center mb-4 break-inside-avoid">
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                    <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.projects}</h2>
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-6">
+                    {dataToRender.projects.map((proj, idx) => (
+                      <div key={idx} className="break-inside-avoid">
+                        <div className="flex justify-between items-baseline mb-1">
+                          <h3 className="font-bold text-slate-900">{proj.name}</h3>
+                          <span className="text-sm text-slate-500">{proj.dates}</span>
+                        </div>
+                        <p className="text-xs text-blue-600 mb-2">{proj.link}</p>
+                        <ul className="list-disc list-outside ml-4 space-y-1">
+                          {proj.bullets.map((bullet, bIdx) => (
+                            <li key={bIdx} className="text-sm leading-relaxed text-slate-700 pl-1">{bullet}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Volunteering */}
+              {dataToRender.volunteering.length > 0 && (
+                <div>
+                  <div className="flex items-center mb-4 break-inside-avoid">
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                    <h2 className="px-4 text-sm font-bold uppercase tracking-widest text-slate-500">{t.volunteering}</h2>
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-6">
+                    {dataToRender.volunteering.map((vol, idx) => (
+                      <div key={idx} className="break-inside-avoid">
+                        <div className="flex justify-between items-baseline mb-1">
+                          <h3 className="font-bold text-slate-900">{vol.role}</h3>
+                          <span className="text-sm text-slate-500">{vol.dates}</span>
+                        </div>
+                        <div className="text-sm font-medium" style={{ color: themeColor }}>{vol.company}</div>
+                        <ul className="list-disc list-outside ml-4 space-y-1">
+                          {vol.bullets.map((bullet, bIdx) => (
+                            <li key={bIdx} className="text-sm leading-relaxed text-slate-700 pl-1">{bullet}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Education & Skills Row */}
+              <div className="grid grid-cols-2 gap-8 break-inside-avoid">
+                {raw.education.length > 0 && (
+                  <div>
+                    <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">{t.education}</h2>
+                    <div className="space-y-4">
+                      {raw.education.map((edu, idx) => (
+                        <div key={idx} className="text-center">
+                          <div className="font-bold text-slate-900">{edu.school}</div>
+                          <div className="text-sm text-slate-700">{edu.degree}</div>
+                          <div className="text-xs text-slate-500 mt-1">{edu.dates}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {dataToRender.skills.length > 0 && (
+                  <div>
+                    <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">{t.skills}</h2>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {dataToRender.skills.map((skill, idx) => (
+                        <span key={idx} className="text-sm text-slate-700 font-medium border-b border-slate-200 pb-0.5">{skill}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {dataToRender.achievements && dataToRender.achievements.length > 0 && (
+                <div className="break-inside-avoid">
+                  <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">{t.awards}</h2>
+                  <ul className="list-none text-center space-y-1">
+                    {dataToRender.achievements.map((ach, idx) => (
+                      <li key={idx} className="text-sm text-slate-700">{ach}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1413,18 +1518,19 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
   return (
     <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
       <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-        <div 
-          ref={ref}
+        <div
+          ref={containerRef}
+          style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}
           className="w-[210mm] min-h-[297mm] bg-white text-slate-800 relative mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible"
         >
           <div className="break-inside-avoid">
             <div className="p-8 pb-4">
               <h1 className="text-4xl font-bold text-slate-900 mb-2" style={{ color: themeColor }}>{raw.fullName || "Your Name"}</h1>
               <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-                 {raw.email && <span>{raw.email}</span>}
-                 {raw.phone && <span>{raw.phone}</span>}
-                 {raw.location && <span>{raw.location}</span>}
-                 {raw.linkedin && <span>{raw.linkedin.replace(/^https?:\/\//, '')}</span>}
+                {raw.email && <span>{raw.email}</span>}
+                {raw.phone && <span>{raw.phone}</span>}
+                {raw.location && <span>{raw.location}</span>}
+                {raw.linkedin && <span>{raw.linkedin.replace(/^https?:\/\//, '')}</span>}
               </div>
             </div>
             {/* Color Separator */}
@@ -1443,7 +1549,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
               </div>
             )}
 
-             {dataToRender.experience.length > 0 && (
+            {dataToRender.experience.length > 0 && (
               <div className="flex">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
                   {t.experience}
@@ -1465,9 +1571,9 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                   ))}
                 </div>
               </div>
-             )}
+            )}
 
-             {dataToRender.internships.length > 0 && (
+            {dataToRender.internships.length > 0 && (
               <div className="flex">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
                   {t.internships}
@@ -1489,10 +1595,10 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                   ))}
                 </div>
               </div>
-             )}
+            )}
 
-             {raw.education.length > 0 && (
-               <div className="flex break-inside-avoid">
+            {raw.education.length > 0 && (
+              <div className="flex break-inside-avoid">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
                   {t.education}
                 </div>
@@ -1506,10 +1612,10 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                   ))}
                 </div>
               </div>
-             )}
+            )}
 
-             {dataToRender.projects.length > 0 && (
-               <div className="flex">
+            {dataToRender.projects.length > 0 && (
+              <div className="flex">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
                   {t.projects}
                 </div>
@@ -1518,7 +1624,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <div key={idx} className="break-inside-avoid">
                       <div className="flex justify-between items-baseline">
                         <div className="font-bold text-slate-900 flex items-center gap-2">
-                          {proj.name} 
+                          {proj.name}
                         </div>
                         <span className="text-sm text-slate-500">{proj.dates}</span>
                       </div>
@@ -1531,10 +1637,10 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                   ))}
                 </div>
               </div>
-             )}
+            )}
 
-             {dataToRender.volunteering.length > 0 && (
-               <div className="flex">
+            {dataToRender.volunteering.length > 0 && (
+              <div className="flex">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
                   {t.volunteering}
                 </div>
@@ -1543,7 +1649,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                     <div key={idx} className="break-inside-avoid">
                       <div className="flex justify-between items-baseline">
                         <div className="font-bold text-slate-900 flex items-center gap-2">
-                          {vol.role} 
+                          {vol.role}
                         </div>
                         <span className="text-sm text-slate-500">{vol.dates}</span>
                       </div>
@@ -1557,46 +1663,46 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                   ))}
                 </div>
               </div>
-             )}
+            )}
 
-              {dataToRender.skills.length > 0 && (
-               <div className="flex break-inside-avoid">
+            {dataToRender.skills.length > 0 && (
+              <div className="flex break-inside-avoid">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
                   {t.skills}
                 </div>
                 <div className="flex-1 p-6 border-b border-slate-100 bg-slate-50/50">
                   <div className="flex flex-wrap gap-x-6 gap-y-2">
-                     {dataToRender.skills.map((skill, idx) => (
-                       <div key={idx} className="text-sm text-slate-700 font-medium flex items-center">
-                         <span className="w-1.5 h-1.5 rounded-full mr-2 opacity-60" style={{ backgroundColor: themeColor }}></span>
-                         {skill}
-                       </div>
-                     ))}
+                    {dataToRender.skills.map((skill, idx) => (
+                      <div key={idx} className="text-sm text-slate-700 font-medium flex items-center">
+                        <span className="w-1.5 h-1.5 rounded-full mr-2 opacity-60" style={{ backgroundColor: themeColor }}></span>
+                        {skill}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
-             )}
+            )}
 
-              {dataToRender.achievements && dataToRender.achievements.length > 0 && (
-               <div className="flex flex-1 break-inside-avoid">
+            {dataToRender.achievements && dataToRender.achievements.length > 0 && (
+              <div className="flex flex-1 break-inside-avoid">
                 <div className="w-[160px] text-white p-4 pt-6 text-xs font-bold tracking-widest uppercase text-right shrink-0" style={{ backgroundColor: themeColor }}>
                   {t.awards}
                 </div>
                 <div className="flex-1 p-6">
-                   <ul className="list-disc list-outside ml-4 space-y-2">
+                  <ul className="list-disc list-outside ml-4 space-y-2">
                     {dataToRender.achievements.map((ach, idx) => (
                       <li key={idx} className="text-sm leading-relaxed text-slate-600 pl-1">{ach}</li>
                     ))}
                   </ul>
                 </div>
               </div>
-             )}
-             
-             {/* Fill remaining height with colored sidebar if needed */}
-             <div className="flex flex-1 min-h-[20mm] print:hidden">
-               <div className="w-[160px] shrink-0" style={{ backgroundColor: themeColor }}></div>
-               <div className="flex-1 bg-white"></div>
-             </div>
+            )}
+
+            {/* Fill remaining height with colored sidebar if needed */}
+            <div className="flex flex-1 min-h-[20mm] print:hidden">
+              <div className="w-[160px] shrink-0" style={{ backgroundColor: themeColor }}></div>
+              <div className="flex-1 bg-white"></div>
+            </div>
           </div>
         </div>
       </div>

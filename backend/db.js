@@ -1,8 +1,9 @@
+require("dotenv").config();
 const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: { rejectUnauthorized: false }
 });
 
 // Initialize database schema
@@ -45,7 +46,7 @@ const getTransaction = async (reference) => {
 const updateTransaction = async (reference, data) => {
   try {
     const existing = await getTransaction(reference);
-    
+
     if (existing) {
       // Update existing
       await pool.query(

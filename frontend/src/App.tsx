@@ -123,7 +123,7 @@ const formatDate = (dateStr: string, lang: 'en' | 'fr' = 'en') => {
 
 const ROLES = [
   "Software Engineer",
-  "Data Entry Specialist", 
+  "Data Entry Specialist",
   "Project Manager",
   "Marketing Specialist",
   "Sales Representative",
@@ -288,7 +288,7 @@ const SAMPLE_DATA: ResumeData = {
 
 export default function App() {
   const [showLanding, setShowLanding] = useState(true);
-  
+
   const [data, setData] = useState<ResumeData>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('resumeData');
@@ -297,7 +297,7 @@ export default function App() {
           const parsed = JSON.parse(saved);
           // Ensure language property exists for older saves
           if (!parsed.language) parsed.language = 'en';
-          
+
           if (parsed.sessionId && hasSessionDownloaded(parsed.sessionId)) {
             return {
               ...parsed,
@@ -306,11 +306,11 @@ export default function App() {
               paymentReference: undefined
             };
           }
-          
+
           if (!parsed.sessionId) {
             parsed.sessionId = generateSessionId();
           }
-          
+
           return parsed;
         } catch (e) {
           console.error('Failed to parse saved resume data');
@@ -343,9 +343,11 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
-  
-  const printRef = useRef<HTMLDivElement>(null);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+
+  const printRef = useRef<any>(null); // Updated type to allow method access
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -366,31 +368,31 @@ export default function App() {
   };
 
   const resetData = () => {
-     if (confirm("This will clear ALL your current data and start a new session. Are you sure?")) {
-         const newSessionId = generateSessionId();
-         const resetState = { ...INITIAL_DATA, language: data.language, sessionId: newSessionId };
+    if (confirm("This will clear ALL your current data and start a new session. Are you sure?")) {
+      const newSessionId = generateSessionId();
+      const resetState = { ...INITIAL_DATA, language: data.language, sessionId: newSessionId };
 
-         setData(resetState);
-         setAiOutput(null);
-         setAiCoverLetter(null);
-         localStorage.removeItem('resumeData');
-         localStorage.removeItem('aiOutput');
-         localStorage.removeItem('aiCoverLetter');
-     }
+      setData(resetState);
+      setAiOutput(null);
+      setAiCoverLetter(null);
+      localStorage.removeItem('resumeData');
+      localStorage.removeItem('aiOutput');
+      localStorage.removeItem('aiCoverLetter');
+    }
   };
 
   const handleDownloadClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (!data.isPaid) {
-        setIsPaymentModalOpen(true);
-        return;
+      setIsPaymentModalOpen(true);
+      return;
     }
     executeDownload();
   };
 
   const handlePaymentSuccess = () => {
     const newSessionId = generateSessionId();
-    setData(prev => ({ 
-      ...prev, 
+    setData(prev => ({
+      ...prev,
       isPaid: true,
       hasDownloaded: false,
       sessionId: newSessionId
@@ -406,18 +408,18 @@ export default function App() {
       const type = data.mode === 'cover-letter' ? 'Cover_Letter' : data.mode === 'cv' ? 'CV' : 'Resume';
       document.title = `${data.fullName.replace(' ', '_')}_${type}`;
     }
-    
+
     setActiveTab('preview');
-    
+
     setTimeout(() => {
       window.print();
       document.title = originalTitle;
-      
+
       setTimeout(() => {
         if (data.sessionId) {
           markSessionAsDownloaded(data.sessionId);
-          setData(prev => ({ 
-            ...prev, 
+          setData(prev => ({
+            ...prev,
             hasDownloaded: true,
             isPaid: false
           }));
@@ -426,12 +428,40 @@ export default function App() {
     }, 500);
   };
 
+  const handleImageDownload = async (format: 'png' | 'jpeg' | 'svg') => {
+    if (!data.isPaid) {
+      setIsPaymentModalOpen(true);
+      return;
+    }
+
+    setActiveTab('preview');
+    setShowDownloadMenu(false);
+
+    // Wait for preview to render if needed
+    setTimeout(async () => {
+      if (printRef.current && printRef.current.downloadAsImage) {
+        await printRef.current.downloadAsImage(format);
+
+        if (data.sessionId) {
+          markSessionAsDownloaded(data.sessionId);
+          setData(prev => ({
+            ...prev,
+            hasDownloaded: true,
+            isPaid: false
+          }));
+        }
+      } else {
+        alert("Preview not ready. Please try again.");
+      }
+    }, 500);
+  };
+
   const handleAiGenerate = async () => {
     if (!data.targetRole) {
       alert("Please select a target role/niche first.");
       return;
     }
-    
+
     setIsGenerating(true);
     try {
       if (data.mode === 'cover-letter') {
@@ -454,7 +484,7 @@ export default function App() {
   const loadSampleData = () => {
     if (confirm("This will replace your current data with sample data. Continue?")) {
       setData({ ...SAMPLE_DATA, mode: data.mode, language: data.language, isPaid: false });
-      setAiOutput(null); 
+      setAiOutput(null);
       setAiCoverLetter(null);
     }
   };
@@ -464,7 +494,7 @@ export default function App() {
       let defaultTemplate = data.template;
       if (mode === 'cv' && !data.template.startsWith('cv')) defaultTemplate = 'cv-corporate';
       if (mode === 'resume' && data.template.startsWith('cv')) defaultTemplate = 'modern';
-      
+
       setData(prev => ({ ...prev, mode, template: defaultTemplate }));
     }
   };
@@ -482,7 +512,7 @@ export default function App() {
     if (file) {
       const maxSizeMB = 2;
       const maxSizeBytes = maxSizeMB * 1024 * 1024;
-      
+
       if (file.size > maxSizeBytes) {
         alert(`Image is too large. Maximum size is ${maxSizeMB}MB. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
         return;
@@ -522,16 +552,16 @@ export default function App() {
           if (item.id !== id) return item;
 
           const updatedItem = { ...item, [field]: value };
-          
+
           if (field === 'isCurrent' && value === true) {
             updatedItem.endDate = '';
           }
 
           const startStr = formatDate(updatedItem.startDate, prev.language);
           const endStr = updatedItem.isCurrent ? (prev.language === 'fr' ? 'Présent' : 'Present') : formatDate(updatedItem.endDate, prev.language);
-          
-          updatedItem.dates = startStr && endStr 
-            ? `${startStr} - ${endStr}` 
+
+          updatedItem.dates = startStr && endStr
+            ? `${startStr} - ${endStr}`
             : startStr || endStr || '';
 
           return updatedItem;
@@ -542,7 +572,7 @@ export default function App() {
 
   const addItem = (type: 'experience' | 'education' | 'projects' | 'internships' | 'volunteering') => {
     const newItem: any = { id: generateId(), dates: '', startDate: '', endDate: '', isCurrent: false };
-    
+
     if (type === 'education') {
       newItem.school = '';
       newItem.degree = '';
@@ -594,36 +624,33 @@ export default function App() {
             </div>
             <span className="font-bold text-xl text-slate-800 group-hover:text-slate-600 transition-colors">ResumeAI</span>
           </div>
-          
+
           {/* Center: Mode Switcher */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl mx-4 sm:mx-8 overflow-x-auto max-w-[200px] sm:max-w-none no-scrollbar">
             <button
               onClick={() => switchMode('resume')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
-                data.mode === 'resume' 
-                  ? 'bg-white text-slate-900 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'resume'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                }`}
             >
               {t.resume}
             </button>
             <button
               onClick={() => switchMode('cv')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
-                data.mode === 'cv' 
-                  ? 'bg-white text-slate-900 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'cv'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                }`}
             >
               {t.cv}
             </button>
             <button
               onClick={() => switchMode('cover-letter')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
-                data.mode === 'cover-letter' 
-                  ? 'bg-white text-slate-900 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'cover-letter'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                }`}
             >
               {t.coverLetter}
             </button>
@@ -633,110 +660,122 @@ export default function App() {
           <div className="flex items-center gap-3">
             {/* Language Toggle */}
             <div className="flex bg-slate-100 p-1 rounded-lg mr-2">
-                <button 
-                    onClick={() => switchLanguage('en')} 
-                    className={`px-2 py-1 text-xs font-bold rounded ${data.language === 'en' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}`}
-                >
-                    EN
-                </button>
-                <button 
-                    onClick={() => switchLanguage('fr')} 
-                    className={`px-2 py-1 text-xs font-bold rounded ${data.language === 'fr' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}`}
-                >
-                    FR
-                </button>
+              <button
+                onClick={() => switchLanguage('en')}
+                className={`px-2 py-1 text-xs font-bold rounded ${data.language === 'en' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}`}
+              >
+                EN
+              </button>
+              <button
+                onClick={() => switchLanguage('fr')}
+                className={`px-2 py-1 text-xs font-bold rounded ${data.language === 'fr' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}`}
+              >
+                FR
+              </button>
             </div>
 
-            <button 
+            <button
               onClick={loadSampleData}
               className="text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors hidden md:block"
             >
               {t.loadSample}
             </button>
-            
+
             <button
-                onClick={resetData}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-all hover:scale-105"
-                title={t.clearData}
+              onClick={resetData}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-all hover:scale-105"
+              title={t.clearData}
             >
-                <TrashIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">{t.new}</span>
+              <TrashIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">{t.new}</span>
             </button>
 
             <div className="flex bg-slate-100 p-1 rounded-lg">
               <button
                 onClick={() => setActiveTab('edit')}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                  activeTab === 'edit' 
-                    ? 'bg-white text-slate-900 shadow-sm' 
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'edit'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+                  }`}
               >
                 {t.edit}
               </button>
               <button
                 onClick={() => setActiveTab('preview')}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                  activeTab === 'preview' 
-                    ? 'bg-white text-slate-900 shadow-sm' 
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'preview'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+                  }`}
               >
                 {t.preview}
               </button>
             </div>
-            
+
             {/* Updated Download Button with Explicit Text */}
-            <button
-              onClick={handleDownloadClick}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:scale-105 shadow-sm ${
-                data.hasDownloaded 
-                  ? 'bg-slate-400 text-white cursor-not-allowed' 
-                  : data.isPaid 
-                    ? 'bg-green-600 text-white hover:bg-green-700' 
+            {/* Download Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  if (!data.isPaid) {
+                    setIsPaymentModalOpen(true);
+                  } else {
+                    setShowDownloadMenu(!showDownloadMenu);
+                  }
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:scale-105 shadow-sm ${data.hasDownloaded
+                  ? 'bg-slate-400 text-white cursor-not-allowed'
+                  : data.isPaid
+                    ? 'bg-green-600 text-white hover:bg-green-700'
                     : 'bg-slate-900 text-white hover:bg-slate-800 ring-2 ring-offset-2 ring-slate-900'
-              }`}
-              title={
-                data.hasDownloaded 
-                  ? "Already downloaded - Pay to download again" 
-                  : data.isPaid 
-                    ? "Download PDF" 
-                    : "Payment Required to Download"
-              }
-            >
-              {data.hasDownloaded ? (
-                <>
-                  <CheckIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{t.downloaded}</span>
-                </>
-              ) : data.isPaid ? (
-                <>
-                  <DownloadIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{t.download}</span>
-                </>
-              ) : (
-                <>
-                  {/* Explicit Lock Icon and Price */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                    <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
-                  </svg>
-                  <span className="hidden sm:inline">{t.unlock}</span>
-                </>
+                  }`}
+              >
+                {data.hasDownloaded ? (
+                  <>
+                    <CheckIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">{t.downloaded}</span>
+                  </>
+                ) : data.isPaid ? (
+                  <>
+                    <DownloadIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">{t.download}</span>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                      <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
+                    </svg>
+                    <span className="hidden sm:inline">{t.unlock}</span>
+                  </>
+                )}
+              </button>
+
+              {showDownloadMenu && data.isPaid && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                  <button onClick={handleDownloadClick} className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-50">
+                    <span className="font-bold text-red-500">PDF</span> (Best for Print)
+                  </button>
+                  <button onClick={() => handleImageDownload('png')} className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                    <span className="font-bold text-blue-500">PNG</span> (High Quality)
+                  </button>
+                  <button onClick={() => handleImageDownload('jpeg')} className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                    <span className="font-bold text-green-500">JPG</span> (Small Size)
+                  </button>
+                </div>
               )}
-            </button>
+            </div>
           </div>
         </div>
       </nav>
 
-      <PaymentModal 
-        isOpen={isPaymentModalOpen} 
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
         onSuccess={handlePaymentSuccess}
         amountXAF={10}
       />
 
       <main className="flex-1 w-full max-w-7xl mx-auto p-0 sm:p-4 sm:px-6 lg:px-8 py-4 sm:py-8 flex flex-col lg:flex-row gap-8 items-start print:p-0 print:m-0 print:max-w-none print:block">
-        
+
         <div className={`flex-1 w-full transition-all duration-300 ${activeTab === 'edit' ? 'block opacity-100' : 'hidden lg:block lg:w-1/3 lg:flex-none'} print:hidden`}>
           <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 overflow-hidden">
             <div className="p-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 flex justify-between items-center">
@@ -754,26 +793,26 @@ export default function App() {
             </div>
 
             <div className="p-6 space-y-8 h-[calc(100vh-180px)] overflow-y-auto pb-20">
-              
+
               {data.mode === 'cover-letter' ? (
                 <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                   <section>
                     <label className="block text-sm font-semibold text-slate-700 mb-3">{t.matchingStyle}</label>
                     <p className="text-xs text-slate-500 mb-4">Select the template style to match your Resume/CV.</p>
-                    <select 
+                    <select
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white hover:border-slate-400"
                       value={data.template}
                       onChange={(e) => updateField('template', e.target.value)}
                     >
-                       <option value="modern">Modern</option>
-                       <option value="classic">Classic</option>
-                       <option value="sidebar">Sidebar</option>
-                       <option value="minimalist">Executive</option>
-                       <option value="cv-corporate">Corporate CV</option>
-                       <option value="cv-academic">Academic CV</option>
-                       <option value="cv-executive">Executive CV</option>
+                      <option value="modern">Modern</option>
+                      <option value="classic">Classic</option>
+                      <option value="sidebar">Sidebar</option>
+                      <option value="minimalist">Executive</option>
+                      <option value="cv-corporate">Corporate CV</option>
+                      <option value="cv-academic">Academic CV</option>
+                      <option value="cv-executive">Executive CV</option>
                     </select>
-                    
+
                     <div className="mt-5">
                       <label className="block text-sm font-semibold text-slate-700 mb-3">{t.accentColor}</label>
                       <div className="flex flex-wrap gap-4">
@@ -781,9 +820,8 @@ export default function App() {
                           <button
                             key={color.name}
                             onClick={() => updateField('themeColor', color.hex)}
-                            className={`w-10 h-10 rounded-full shadow-md border-2 transition-all flex items-center justify-center hover:scale-110 ${
-                              data.themeColor === color.hex ? 'border-slate-900 scale-110' : 'border-transparent'
-                            }`}
+                            className={`w-10 h-10 rounded-full shadow-md border-2 transition-all flex items-center justify-center hover:scale-110 ${data.themeColor === color.hex ? 'border-slate-900 scale-110' : 'border-transparent'
+                              }`}
                             style={{ backgroundColor: color.hex }}
                             title={color.name}
                           />
@@ -794,7 +832,7 @@ export default function App() {
 
                   <section>
                     <label className="block text-sm font-semibold text-slate-700 mb-3">{t.targetRole}</label>
-                    <select 
+                    <select
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white hover:border-slate-400"
                       value={data.targetRole}
                       onChange={(e) => updateField('targetRole', e.target.value)}
@@ -812,33 +850,33 @@ export default function App() {
                       {t.recipientDetails}
                     </h3>
                     <div className="grid grid-cols-1 gap-4">
-                       <input 
-                        type="text" 
-                        placeholder="Company Name" 
-                        className="input-field enhanced" 
-                        value={data.companyName} 
-                        onChange={(e) => updateField('companyName', e.target.value)} 
+                      <input
+                        type="text"
+                        placeholder="Company Name"
+                        className="input-field enhanced"
+                        value={data.companyName}
+                        onChange={(e) => updateField('companyName', e.target.value)}
                       />
-                       <input 
-                        type="text" 
-                        placeholder="Hiring Manager Name (Optional)" 
-                        className="input-field enhanced" 
-                        value={data.recipientName} 
-                        onChange={(e) => updateField('recipientName', e.target.value)} 
+                      <input
+                        type="text"
+                        placeholder="Hiring Manager Name (Optional)"
+                        className="input-field enhanced"
+                        value={data.recipientName}
+                        onChange={(e) => updateField('recipientName', e.target.value)}
                       />
-                       <input 
-                        type="text" 
-                        placeholder="Recipient Role (e.g. HR Manager)" 
-                        className="input-field enhanced" 
-                        value={data.recipientRole} 
-                        onChange={(e) => updateField('recipientRole', e.target.value)} 
+                      <input
+                        type="text"
+                        placeholder="Recipient Role (e.g. HR Manager)"
+                        className="input-field enhanced"
+                        value={data.recipientRole}
+                        onChange={(e) => updateField('recipientRole', e.target.value)}
                       />
-                      <input 
-                        type="text" 
-                        placeholder="Company Address (Optional)" 
-                        className="input-field enhanced" 
-                        value={data.companyAddress} 
-                        onChange={(e) => updateField('companyAddress', e.target.value)} 
+                      <input
+                        type="text"
+                        placeholder="Company Address (Optional)"
+                        className="input-field enhanced"
+                        value={data.companyAddress}
+                        onChange={(e) => updateField('companyAddress', e.target.value)}
                       />
                     </div>
                   </section>
@@ -850,8 +888,8 @@ export default function App() {
                     </h3>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-2">Job Description (Paste key parts here)</label>
-                      <textarea 
-                        placeholder="Paste the job description or key requirements here. The AI will tailor your letter to these details." 
+                      <textarea
+                        placeholder="Paste the job description or key requirements here. The AI will tailor your letter to these details."
                         className="input-field enhanced w-full h-40 resize-none"
                         value={data.jobDescription}
                         onChange={(e) => updateField('jobDescription', e.target.value)}
@@ -873,76 +911,69 @@ export default function App() {
                       <div className="grid grid-cols-2 gap-3">
                         {data.mode === 'resume' ? (
                           <>
-                            <button 
+                            <button
                               onClick={() => updateField('template', 'classic')}
-                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
-                                data.template === 'classic' 
-                                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' 
-                                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
+                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'classic'
+                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                }`}
                             >
                               Classic
                             </button>
-                            <button 
+                            <button
                               onClick={() => updateField('template', 'modern')}
-                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
-                                data.template === 'modern' 
-                                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' 
-                                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
+                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'modern'
+                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                }`}
                             >
                               Modern (2-Col)
                             </button>
-                            <button 
+                            <button
                               onClick={() => updateField('template', 'sidebar')}
-                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
-                                data.template === 'sidebar' 
-                                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' 
-                                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
+                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'sidebar'
+                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                }`}
                             >
                               Sidebar
                             </button>
-                            <button 
+                            <button
                               onClick={() => updateField('template', 'minimalist')}
-                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
-                                data.template === 'minimalist' 
-                                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' 
-                                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
+                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'minimalist'
+                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                }`}
                             >
                               Executive
                             </button>
                           </>
                         ) : (
                           <>
-                            <button 
+                            <button
                               onClick={() => updateField('template', 'cv-corporate')}
-                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
-                                data.template === 'cv-corporate' 
-                                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' 
-                                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
+                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-corporate'
+                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                }`}
                             >
                               Corporate (Photo)
                             </button>
-                            <button 
+                            <button
                               onClick={() => updateField('template', 'cv-executive')}
-                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
-                                data.template === 'cv-executive' 
-                                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' 
-                                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
+                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-executive'
+                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                }`}
                             >
                               Executive
                             </button>
-                            <button 
+                            <button
                               onClick={() => updateField('template', 'cv-academic')}
-                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
-                                data.template === 'cv-academic' 
-                                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' 
-                                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
+                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-academic'
+                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                }`}
                             >
                               Academic
                             </button>
@@ -950,7 +981,7 @@ export default function App() {
                         )}
                       </div>
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-3">{t.accentColor}</label>
                       <div className="flex flex-wrap gap-4">
@@ -958,9 +989,8 @@ export default function App() {
                           <button
                             key={color.name}
                             onClick={() => updateField('themeColor', color.hex)}
-                            className={`w-10 h-10 rounded-full shadow-md border-2 transition-all flex items-center justify-center hover:scale-110 ${
-                              data.themeColor === color.hex ? 'border-slate-900 scale-110' : 'border-transparent'
-                            }`}
+                            className={`w-10 h-10 rounded-full shadow-md border-2 transition-all flex items-center justify-center hover:scale-110 ${data.themeColor === color.hex ? 'border-slate-900 scale-110' : 'border-transparent'
+                              }`}
                             style={{ backgroundColor: color.hex }}
                             title={color.name}
                           />
@@ -971,7 +1001,7 @@ export default function App() {
 
                   <section>
                     <label className="block text-sm font-semibold text-slate-700 mb-3">Target Job Role / Niche</label>
-                    <select 
+                    <select
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white hover:border-slate-400"
                       value={data.targetRole}
                       onChange={(e) => updateField('targetRole', e.target.value)}
@@ -988,7 +1018,7 @@ export default function App() {
                       <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">1</span>
                       {t.personalInfo}
                     </h3>
-                    
+
                     <div className="flex items-center gap-4 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100">
                       <div className="relative w-20 h-20 rounded-full overflow-hidden bg-slate-200 shrink-0 border-2 border-white shadow-md">
                         {data.photo ? (
@@ -1004,24 +1034,24 @@ export default function App() {
                       <div className="flex-1">
                         <label className="block text-sm font-medium text-slate-700 mb-2">Profile Photo</label>
                         <div className="flex gap-3">
-                          <button 
+                          <button
                             onClick={() => fileInputRef.current?.click()}
                             className="text-sm bg-white border border-blue-300 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 transition-all hover:scale-105"
                           >
                             Upload
                           </button>
                           {data.photo && (
-                            <button 
+                            <button
                               onClick={removePhoto}
                               className="text-sm text-red-600 hover:text-red-800 px-3 py-2 transition-colors"
                             >
                               Remove
                             </button>
                           )}
-                          <input 
-                            type="file" 
+                          <input
+                            type="file"
                             ref={fileInputRef}
-                            onChange={handlePhotoUpload} 
+                            onChange={handlePhotoUpload}
                             accept="image/*"
                             className="hidden"
                           />
@@ -1050,7 +1080,7 @@ export default function App() {
                         <PlusIcon className="w-4 h-4" /> {t.addJob}
                       </button>
                     </div>
-                    
+
                     {data.experience.map((exp) => (
                       <div key={exp.id} className="p-5 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200 space-y-4 relative group hover:shadow-md transition-shadow">
                         <button onClick={() => removeItem('experience', exp.id)} className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-white rounded">
@@ -1060,33 +1090,33 @@ export default function App() {
                           <input type="text" placeholder="Job Title" className="input-field enhanced" value={exp.role} onChange={(e) => updateItemField('experience', exp.id, 'role', e.target.value)} />
                           <input type="text" placeholder="Company" className="input-field enhanced" value={exp.company} onChange={(e) => updateItemField('experience', exp.id, 'company', e.target.value)} />
                         </div>
-                        
+
                         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                           <div className="flex-1 w-full sm:w-auto">
                             <label className="text-xs font-medium text-slate-500 mb-1 block">Start Date</label>
-                            <input 
-                              type="month" 
-                              className="input-field enhanced w-full" 
-                              value={exp.startDate || ''} 
-                              onChange={(e) => updateDateRange('experience', exp.id, 'startDate', e.target.value)} 
+                            <input
+                              type="month"
+                              className="input-field enhanced w-full"
+                              value={exp.startDate || ''}
+                              onChange={(e) => updateDateRange('experience', exp.id, 'startDate', e.target.value)}
                             />
                           </div>
-                          
+
                           {!exp.isCurrent && (
                             <div className="flex-1 w-full sm:w-auto">
                               <label className="text-xs font-medium text-slate-500 mb-1 block">End Date</label>
-                              <input 
-                                type="month" 
-                                className="input-field enhanced w-full" 
-                                value={exp.endDate || ''} 
-                                onChange={(e) => updateDateRange('experience', exp.id, 'endDate', e.target.value)} 
+                              <input
+                                type="month"
+                                className="input-field enhanced w-full"
+                                value={exp.endDate || ''}
+                                onChange={(e) => updateDateRange('experience', exp.id, 'endDate', e.target.value)}
                               />
                             </div>
                           )}
-                          
+
                           <div className="flex items-center pt-4 pl-1">
-                            <input 
-                              type="checkbox" 
+                            <input
+                              type="checkbox"
                               id={`current-exp-${exp.id}`}
                               checked={exp.isCurrent || false}
                               onChange={(e) => updateDateRange('experience', exp.id, 'isCurrent', e.target.checked)}
@@ -1096,8 +1126,8 @@ export default function App() {
                           </div>
                         </div>
 
-                        <textarea 
-                          placeholder="Rough notes (e.g. 'Managed 5 people, used React')." 
+                        <textarea
+                          placeholder="Rough notes (e.g. 'Managed 5 people, used React')."
                           className="input-field enhanced w-full h-24 resize-none"
                           value={exp.description}
                           onChange={(e) => updateItemField('experience', exp.id, 'description', e.target.value)}
@@ -1116,7 +1146,7 @@ export default function App() {
                         <PlusIcon className="w-4 h-4" /> {t.addInternship}
                       </button>
                     </div>
-                    
+
                     {data.internships.map((int) => (
                       <div key={int.id} className="p-5 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl border border-teal-200 space-y-4 relative group hover:shadow-md transition-shadow">
                         <button onClick={() => removeItem('internships', int.id)} className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-white rounded">
@@ -1126,33 +1156,33 @@ export default function App() {
                           <input type="text" placeholder="Intern Title" className="input-field enhanced" value={int.role} onChange={(e) => updateItemField('internships', int.id, 'role', e.target.value)} />
                           <input type="text" placeholder="Company" className="input-field enhanced" value={int.company} onChange={(e) => updateItemField('internships', int.id, 'company', e.target.value)} />
                         </div>
-                        
+
                         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                           <div className="flex-1 w-full sm:w-auto">
                             <label className="text-xs font-medium text-slate-500 mb-1 block">Start Date</label>
-                            <input 
-                              type="month" 
-                              className="input-field enhanced w-full" 
-                              value={int.startDate || ''} 
-                              onChange={(e) => updateDateRange('internships', int.id, 'startDate', e.target.value)} 
+                            <input
+                              type="month"
+                              className="input-field enhanced w-full"
+                              value={int.startDate || ''}
+                              onChange={(e) => updateDateRange('internships', int.id, 'startDate', e.target.value)}
                             />
                           </div>
-                          
+
                           {!int.isCurrent && (
                             <div className="flex-1 w-full sm:w-auto">
                               <label className="text-xs font-medium text-slate-500 mb-1 block">End Date</label>
-                              <input 
-                                type="month" 
-                                className="input-field enhanced w-full" 
-                                value={int.endDate || ''} 
-                                onChange={(e) => updateDateRange('internships', int.id, 'endDate', e.target.value)} 
+                              <input
+                                type="month"
+                                className="input-field enhanced w-full"
+                                value={int.endDate || ''}
+                                onChange={(e) => updateDateRange('internships', int.id, 'endDate', e.target.value)}
                               />
                             </div>
                           )}
                         </div>
 
-                        <textarea 
-                          placeholder="What did you learn? What did you build?" 
+                        <textarea
+                          placeholder="What did you learn? What did you build?"
                           className="input-field enhanced w-full h-20 resize-none"
                           value={int.description}
                           onChange={(e) => updateItemField('internships', int.id, 'description', e.target.value)}
@@ -1171,7 +1201,7 @@ export default function App() {
                         <PlusIcon className="w-4 h-4" /> {t.addVolunteering}
                       </button>
                     </div>
-                    
+
                     {data.volunteering.map((vol) => (
                       <div key={vol.id} className="p-5 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-200 space-y-4 relative group hover:shadow-md transition-shadow">
                         <button onClick={() => removeItem('volunteering', vol.id)} className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-white rounded">
@@ -1181,33 +1211,33 @@ export default function App() {
                           <input type="text" placeholder="Role" className="input-field enhanced" value={vol.role} onChange={(e) => updateItemField('volunteering', vol.id, 'role', e.target.value)} />
                           <input type="text" placeholder="Organization" className="input-field enhanced" value={vol.company} onChange={(e) => updateItemField('volunteering', vol.id, 'company', e.target.value)} />
                         </div>
-                        
+
                         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                           <div className="flex-1 w-full sm:w-auto">
                             <label className="text-xs font-medium text-slate-500 mb-1 block">Start Date</label>
-                            <input 
-                              type="month" 
-                              className="input-field enhanced w-full" 
-                              value={vol.startDate || ''} 
-                              onChange={(e) => updateDateRange('volunteering', vol.id, 'startDate', e.target.value)} 
+                            <input
+                              type="month"
+                              className="input-field enhanced w-full"
+                              value={vol.startDate || ''}
+                              onChange={(e) => updateDateRange('volunteering', vol.id, 'startDate', e.target.value)}
                             />
                           </div>
-                          
+
                           {!vol.isCurrent && (
                             <div className="flex-1 w-full sm:w-auto">
                               <label className="text-xs font-medium text-slate-500 mb-1 block">End Date</label>
-                              <input 
-                                type="month" 
-                                className="input-field enhanced w-full" 
-                                value={vol.endDate || ''} 
-                                onChange={(e) => updateDateRange('volunteering', vol.id, 'endDate', e.target.value)} 
+                              <input
+                                type="month"
+                                className="input-field enhanced w-full"
+                                value={vol.endDate || ''}
+                                onChange={(e) => updateDateRange('volunteering', vol.id, 'endDate', e.target.value)}
                               />
                             </div>
                           )}
                         </div>
 
-                        <textarea 
-                          placeholder="Impact, community service, leadership..." 
+                        <textarea
+                          placeholder="Impact, community service, leadership..."
                           className="input-field enhanced w-full h-20 resize-none"
                           value={vol.description}
                           onChange={(e) => updateItemField('volunteering', vol.id, 'description', e.target.value)}
@@ -1233,26 +1263,26 @@ export default function App() {
                         </button>
                         <input type="text" placeholder="School / University" className="input-field enhanced w-full" value={edu.school} onChange={(e) => updateItemField('education', edu.id, 'school', e.target.value)} />
                         <input type="text" placeholder="Degree / Major" className="input-field enhanced w-full" value={edu.degree} onChange={(e) => updateItemField('education', edu.id, 'degree', e.target.value)} />
-                        
+
                         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                           <div className="flex-1 w-full sm:w-auto">
                             <label className="text-xs font-medium text-slate-500 mb-1 block">Start Date</label>
-                            <input 
-                              type="month" 
-                              className="input-field enhanced w-full" 
-                              value={edu.startDate || ''} 
-                              onChange={(e) => updateDateRange('education', edu.id, 'startDate', e.target.value)} 
+                            <input
+                              type="month"
+                              className="input-field enhanced w-full"
+                              value={edu.startDate || ''}
+                              onChange={(e) => updateDateRange('education', edu.id, 'startDate', e.target.value)}
                             />
                           </div>
-                          
+
                           {!edu.isCurrent && (
                             <div className="flex-1 w-full sm:w-auto">
                               <label className="text-xs font-medium text-slate-500 mb-1 block">End/Grad Date</label>
-                              <input 
-                                type="month" 
-                                className="input-field enhanced w-full" 
-                                value={edu.endDate || ''} 
-                                onChange={(e) => updateDateRange('education', edu.id, 'endDate', e.target.value)} 
+                              <input
+                                type="month"
+                                className="input-field enhanced w-full"
+                                value={edu.endDate || ''}
+                                onChange={(e) => updateDateRange('education', edu.id, 'endDate', e.target.value)}
                               />
                             </div>
                           )}
@@ -1280,33 +1310,33 @@ export default function App() {
                           <input type="text" placeholder="Name / Title" className="input-field enhanced" value={proj.name} onChange={(e) => updateItemField('projects', proj.id, 'name', e.target.value)} />
                           <input type="text" placeholder="Link (optional)" className="input-field enhanced" value={proj.link} onChange={(e) => updateItemField('projects', proj.id, 'link', e.target.value)} />
                         </div>
-                        
+
                         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                           <div className="flex-1 w-full sm:w-auto">
                             <label className="text-xs font-medium text-slate-500 mb-1 block">Start Date</label>
-                            <input 
-                              type="month" 
-                              className="input-field enhanced w-full" 
-                              value={proj.startDate || ''} 
-                              onChange={(e) => updateDateRange('projects', proj.id, 'startDate', e.target.value)} 
+                            <input
+                              type="month"
+                              className="input-field enhanced w-full"
+                              value={proj.startDate || ''}
+                              onChange={(e) => updateDateRange('projects', proj.id, 'startDate', e.target.value)}
                             />
                           </div>
-                          
+
                           {!proj.isCurrent && (
                             <div className="flex-1 w-full sm:w-auto">
                               <label className="text-xs font-medium text-slate-500 mb-1 block">End Date</label>
-                              <input 
-                                type="month" 
-                                className="input-field enhanced w-full" 
-                                value={proj.endDate || ''} 
-                                onChange={(e) => updateDateRange('projects', proj.id, 'endDate', e.target.value)} 
+                              <input
+                                type="month"
+                                className="input-field enhanced w-full"
+                                value={proj.endDate || ''}
+                                onChange={(e) => updateDateRange('projects', proj.id, 'endDate', e.target.value)}
                               />
                             </div>
                           )}
                         </div>
-                        
-                        <textarea 
-                          placeholder="Description, key findings, or details." 
+
+                        <textarea
+                          placeholder="Description, key findings, or details."
                           className="input-field enhanced w-full h-20 resize-none"
                           value={proj.description}
                           onChange={(e) => updateItemField('projects', proj.id, 'description', e.target.value)}
@@ -1322,8 +1352,8 @@ export default function App() {
                     </h3>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-2">Skills (comma separated)</label>
-                      <textarea 
-                        placeholder="Python, Leadership, SEO, Project Management..." 
+                      <textarea
+                        placeholder="Python, Leadership, SEO, Project Management..."
                         className="input-field enhanced w-full h-24 resize-none"
                         value={data.skills}
                         onChange={(e) => updateField('skills', e.target.value)}
@@ -1331,8 +1361,8 @@ export default function App() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-2">Languages</label>
-                      <textarea 
-                        placeholder="English (Native), Spanish (Conversational)..." 
+                      <textarea
+                        placeholder="English (Native), Spanish (Conversational)..."
                         className="input-field enhanced w-full h-20 resize-none"
                         value={data.languages}
                         onChange={(e) => updateField('languages', e.target.value)}
@@ -1340,20 +1370,20 @@ export default function App() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-2">Achievements (One per line)</label>
-                      <textarea 
-                        placeholder="Winner of Hackathon 2023&#10;Dean's List 2020" 
+                      <textarea
+                        placeholder="Winner of Hackathon 2023&#10;Dean's List 2020"
                         className="input-field enhanced w-full h-24 resize-none"
                         value={data.achievements}
                         onChange={(e) => updateField('achievements', e.target.value)}
                       />
                     </div>
-                    
+
                     {data.mode === 'cv' && (
                       <>
                         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                           <label className="block text-xs font-medium text-slate-500 mb-2">Publications (One per line)</label>
-                          <textarea 
-                            placeholder="Title of Paper, Journal, Date...&#10;Book Chapter Title, Publisher..." 
+                          <textarea
+                            placeholder="Title of Paper, Journal, Date...&#10;Book Chapter Title, Publisher..."
                             className="input-field enhanced w-full h-24 resize-none"
                             value={data.publications}
                             onChange={(e) => updateField('publications', e.target.value)}
@@ -1361,8 +1391,8 @@ export default function App() {
                         </div>
                         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                           <label className="block text-xs font-medium text-slate-500 mb-2">Certifications & Licenses (One per line)</label>
-                          <textarea 
-                            placeholder="AWS Certified Solutions Architect&#10;Project Management Professional (PMP)" 
+                          <textarea
+                            placeholder="AWS Certified Solutions Architect&#10;Project Management Professional (PMP)"
                             className="input-field enhanced w-full h-24 resize-none"
                             value={data.certifications}
                             onChange={(e) => updateField('certifications', e.target.value)}
@@ -1373,8 +1403,8 @@ export default function App() {
 
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-2">Summary Notes (Optional)</label>
-                      <textarea 
-                        placeholder="Any specific career goals or highlights for the summary..." 
+                      <textarea
+                        placeholder="Any specific career goals or highlights for the summary..."
                         className="input-field enhanced w-full h-24 resize-none"
                         value={data.summary}
                         onChange={(e) => updateField('summary', e.target.value)}
@@ -1384,18 +1414,17 @@ export default function App() {
                 </>
               )}
             </div>
-            
+
             <div className="p-6 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-white sticky bottom-0 z-10">
               <button
                 onClick={handleAiGenerate}
                 disabled={isGenerating || !data.targetRole}
-                className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] ${
-                  isGenerating 
-                    ? 'bg-blue-400 cursor-wait' 
-                    : !data.targetRole 
-                      ? 'bg-slate-300 cursor-not-allowed' 
-                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-xl'
-                }`}
+                className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] ${isGenerating
+                  ? 'bg-blue-400 cursor-wait'
+                  : !data.targetRole
+                    ? 'bg-slate-300 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-xl'
+                  }`}
               >
                 {isGenerating ? (
                   <>
@@ -1419,18 +1448,18 @@ export default function App() {
         <div className={`flex-1 flex justify-center transition-opacity duration-300 ${activeTab === 'preview' ? 'block opacity-100' : 'hidden lg:block lg:w-2/3'} print:block print:w-full print:static`}>
           <div className="sticky top-24 w-full print:static print:max-w-none print:w-full flex flex-col items-center">
             {activeTab === 'preview' && !aiOutput && !aiCoverLetter && !isGenerating && (
-               <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-800 rounded-xl text-sm print:hidden w-full max-w-lg">
-                 {data.language === 'fr' 
-                   ? "L'aperçu montre actuellement les données brutes. Cliquez sur « Générer » pour laisser l'IA les réécrire professionnellement." 
-                   : "The preview currently shows raw data. Click \"Generate\" to let AI rewrite it professionally."
-                 }
-               </div>
+              <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-800 rounded-xl text-sm print:hidden w-full max-w-lg">
+                {data.language === 'fr'
+                  ? "L'aperçu montre actuellement les données brutes. Cliquez sur « Générer » pour laisser l'IA les réécrire professionnellement."
+                  : "The preview currently shows raw data. Click \"Generate\" to let AI rewrite it professionally."
+                }
+              </div>
             )}
-            
+
             <div className="w-full overflow-hidden flex justify-center print:overflow-visible">
-               <div className="transform origin-top scale-[0.45] sm:scale-[0.65] md:scale-[0.85] xl:scale-100">
-                  <ResumePreview ref={printRef} raw={data} aiContent={aiOutput} aiCoverLetter={aiCoverLetter} />
-               </div>
+              <div className="transform origin-top scale-[0.45] sm:scale-[0.65] md:scale-[0.85] xl:scale-100">
+                <ResumePreview ref={printRef} raw={data} aiContent={aiOutput} aiCoverLetter={aiCoverLetter} />
+              </div>
             </div>
           </div>
         </div>

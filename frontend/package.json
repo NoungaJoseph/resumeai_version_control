@@ -13,6 +13,7 @@
     "@splidejs/react-splide": "^0.7.12",
     "animejs": "^3.2.2",
     "echarts": "^5.5.0",
+    "html2canvas": "^1.4.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tailwindcss-animate": "^1.0.7"
