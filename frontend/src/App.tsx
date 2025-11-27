@@ -367,12 +367,17 @@ export default function App() {
       document.title = `${data.fullName.replace(' ', '_')}_${type}`;
     }
 
-    setActiveTab('preview');
+    // Ensure we are in preview mode
+    if (activeTab !== 'preview') {
+      setActiveTab('preview');
+    }
 
+    // Small delay to allow render if needed, but short enough to try and keep user gesture
     setTimeout(() => {
       window.print();
       document.title = originalTitle;
 
+      // Wait longer to ensure print dialog is used and PDF is saved before locking
       setTimeout(() => {
         if (data.sessionId) {
           markSessionAsDownloaded(data.sessionId);
@@ -382,8 +387,8 @@ export default function App() {
             isPaid: false
           }));
         }
-      }, 1000);
-    }, 500);
+      }, 5000); // Increased to 5 seconds to give user ample time to save PDF
+    }, 100);
   };
 
   const handleImageDownload = async (format: 'png' | 'jpeg' | 'svg') => {
@@ -392,26 +397,59 @@ export default function App() {
       return;
     }
 
-    setActiveTab('preview');
+    // Ensure we are in preview mode
+    if (activeTab !== 'preview') {
+      setActiveTab('preview');
+    }
+
     setShowDownloadMenu(false);
 
-    // Wait for preview to render if needed
+    // Use a very short timeout to allow state update but try to preserve user gesture
     setTimeout(async () => {
       if (printRef.current && printRef.current.downloadAsImage) {
-        await printRef.current.downloadAsImage(format);
+        try {
+          await printRef.current.downloadAsImage(format);
 
-        if (data.sessionId) {
-          markSessionAsDownloaded(data.sessionId);
-          setData(prev => ({
-            ...prev,
-            hasDownloaded: true,
-            isPaid: false
-          }));
+          // Wait to ensure download completes before locking
+          setTimeout(() => {
+            if (data.sessionId) {
+              markSessionAsDownloaded(data.sessionId);
+              setData(prev => ({
+                ...prev,
+                hasDownloaded: true,
+                isPaid: false
+              }));
+            }
+          }, 3000); // 3 second delay to ensure download completes
+        } catch (error) {
+          console.error('Download failed:', error);
+          alert("Download failed. Please try again.");
         }
       } else {
-        alert("Preview not ready. Please try again.");
+        // If ref is not ready, try one more time with a slightly longer delay
+        setTimeout(async () => {
+          if (printRef.current && printRef.current.downloadAsImage) {
+            try {
+              await printRef.current.downloadAsImage(format);
+              setTimeout(() => {
+                if (data.sessionId) {
+                  markSessionAsDownloaded(data.sessionId);
+                  setData(prev => ({
+                    ...prev,
+                    hasDownloaded: true,
+                    isPaid: false
+                  }));
+                }
+              }, 3000);
+            } catch (e) {
+              alert("Download failed. Please try again.");
+            }
+          } else {
+            alert("Preview not ready. Please switch to Preview tab and try again.");
+          }
+        }, 500);
       }
-    }, 500);
+    }, 50);
   };
 
   const handleAiGenerate = async () => {
@@ -661,6 +699,9 @@ export default function App() {
                   if (!data.isPaid) {
                     setIsPaymentModalOpen(true);
                   } else {
+                    if (activeTab !== 'preview') {
+                      setActiveTab('preview');
+                    }
                     setShowDownloadMenu(!showDownloadMenu);
                   }
                 }}
