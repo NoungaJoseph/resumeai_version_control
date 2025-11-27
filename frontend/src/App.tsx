@@ -584,10 +584,10 @@ export default function App() {
           </div>
 
           {/* Center: Mode Switcher */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl mx-4 sm:mx-8 overflow-x-auto max-w-[200px] sm:max-w-none no-scrollbar">
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl mx-2 sm:mx-8">
             <button
               onClick={() => switchMode('resume')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'resume'
+              className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'resume'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                 }`}
@@ -596,7 +596,7 @@ export default function App() {
             </button>
             <button
               onClick={() => switchMode('cv')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'cv'
+              className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'cv'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                 }`}
@@ -605,7 +605,7 @@ export default function App() {
             </button>
             <button
               onClick={() => switchMode('cover-letter')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'cover-letter'
+              className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'cover-letter'
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                 }`}
