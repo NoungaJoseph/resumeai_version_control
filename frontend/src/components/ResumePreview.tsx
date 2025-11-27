@@ -10,58 +10,34 @@ interface ResumePreviewProps {
   aiCoverLetter?: AICoverLetterOutput | null;
 }
 
-// Translation dictionary for resume headers
-const LABELS = {
-  en: {
-    profile: "Professional Profile",
-    experience: "Professional Experience",
-    education: "Education",
-    skills: "Skills",
-    competencies: "Competencies",
-    expertise: "Expertise",
-    languages: "Languages",
-    projects: "Projects",
-    internships: "Internships",
-    volunteering: "Volunteering",
-    awards: "Awards",
-    honors: "Honors",
-    certifications: "Certifications",
-    publications: "Publications",
-    credentials: "Credentials",
-    keyProjects: "Key Projects",
-    academicExp: "Academic & Professional Experience",
-    research: "Research Projects"
-  },
-  fr: {
-    profile: "Profil Professionnel",
-    experience: "Expérience Professionnelle",
-    education: "Formation",
-    skills: "Compétences",
-    competencies: "Compétences Clés",
-    expertise: "Expertise",
-    languages: "Langues",
-    projects: "Projets",
-    internships: "Stages",
-    volunteering: "Bénévolat",
-    awards: "Distinctions",
-    honors: "Honneurs",
-    certifications: "Certifications",
-    publications: "Publications",
-    credentials: "Accréditations",
-    keyProjects: "Projets Clés",
-    academicExp: "Expérience Académique & Professionnelle",
-    research: "Projets de Recherche"
-  }
+// Hardcoded English Labels
+const t = {
+  profile: "Professional Profile",
+  experience: "Professional Experience",
+  education: "Education",
+  skills: "Skills",
+  competencies: "Competencies",
+  expertise: "Expertise",
+  languages: "Languages",
+  projects: "Projects",
+  internships: "Internships",
+  volunteering: "Volunteering",
+  awards: "Awards",
+  honors: "Honors",
+  certifications: "Certifications",
+  publications: "Publications",
+  credentials: "Credentials",
+  keyProjects: "Key Projects",
+  academicExp: "Academic & Professional Experience",
+  research: "Research Projects"
 };
 
 const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiContent, aiCoverLetter }, ref) => {
   const themeColor = raw.themeColor || '#1e3a8a'; // Default to Navy if not set
-  const lang = raw.language || 'en'; // Default to English
-  const t = LABELS[lang];
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  const [isCompact, setIsCompact] = useState(false);
+
+  // Removed scaling state as per user request for multi-page support
 
 
 
@@ -76,7 +52,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
 
     try {
       const canvas = await html2canvas(containerRef.current, {
-        scale: 2, // Higher quality
+        scale: 3, // Increased quality
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff'
@@ -100,30 +76,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
   }) as any);
 
   // Scaling Logic
-  useLayoutEffect(() => {
-    if (!containerRef.current) return;
-    const element = containerRef.current;
-    const A4_HEIGHT_PX = 1123; // Approx 297mm @ 96dpi
-
-    // Reset first to measure true height
-    element.style.transform = 'none';
-
-    if (element.scrollHeight > A4_HEIGHT_PX) {
-      setIsCompact(true);
-    } else {
-      setIsCompact(false);
-    }
-
-    // Check again after compact mode might have kicked in (if we used it for classes)
-    // For now, we just calculate scale
-    if (element.scrollHeight > A4_HEIGHT_PX) {
-      const newScale = A4_HEIGHT_PX / element.scrollHeight;
-      // Limit scale to avoid unreadable text
-      setScale(Math.max(newScale, 0.65));
-    } else {
-      setScale(1);
-    }
-  }, [raw, aiContent, aiCoverLetter]);
+  // Scaling Logic Removed - Allowing multi-page flow
 
   // Anti-screenshot & Security
   useEffect(() => {
@@ -277,12 +230,12 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
   // --- COVER LETTER RENDERER ---
   if (raw.mode === 'cover-letter') {
     const dateOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
-    const today = new Date().toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', dateOptions);
+    const today = new Date().toLocaleDateString('en-US', dateOptions);
 
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible">
 
             {/* Dynamic Header based on selection */}
             {raw.template === 'cv-corporate' && renderCorporateHeader()}
@@ -322,15 +275,12 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
                   </>
                 ) : (
                   <div className="opacity-50 italic space-y-4">
-                    <p>{lang === 'fr' ? 'Cher Responsable du recrutement,' : 'Dear Hiring Manager,'}</p>
+                    <p>Dear Hiring Manager,</p>
                     <p>
-                      {lang === 'fr'
-                        ? `Je vous écris pour exprimer mon vif intérêt pour le poste de ${raw.targetRole || "[Titre du poste]"} chez ${raw.companyName || "[Nom de l'entreprise]"}, tel qu'annoncé.`
-                        : `I am writing to express my strong interest in the ${raw.targetRole || "[Job Title]"} position at ${raw.companyName || "[Company Name]"}, as advertised.`
-                      }
+                      I am writing to express my strong interest in the {raw.targetRole || "[Job Title]"} position at {raw.companyName || "[Company Name]"}, as advertised.
                     </p>
                     <p>[Generate your cover letter to see a professional, persuasive argument tailored to your profile and the job description here...]</p>
-                    <p>{lang === 'fr' ? 'Cordialement,' : 'Sincerely,'}</p>
+                    <p>Sincerely,</p>
                     <p>{raw.fullName}</p>
                   </div>
                 )}
@@ -396,7 +346,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible print:print-color-adjust-exact">
 
             {/* Header Area */}
             {renderCorporateHeader()}
@@ -614,7 +564,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 font-serif mx-auto box-border print:w-full print:min-h-0 print:p-[15mm] print:h-auto print:overflow-visible">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 font-serif mx-auto box-border print:w-full print:min-h-0 print:p-[15mm] print:h-auto print:overflow-visible print:print-color-adjust-exact">
 
             {/* Header - Centered & Formal */}
             <header className="mb-10 text-center border-b-2 border-slate-900 pb-8 relative break-inside-avoid">
@@ -825,7 +775,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[15mm] print:h-auto print:overflow-visible">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[15mm] print:h-auto print:overflow-visible print:print-color-adjust-exact">
 
             {renderExecutiveHeader()}
 
@@ -1036,7 +986,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white p-[15mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[10mm] print:h-auto print:overflow-visible">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[15mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[10mm] print:h-auto print:overflow-visible">
 
             {renderClassicHeader()}
 
@@ -1187,7 +1137,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:h-auto print:overflow-visible flex flex-col">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:h-auto print:overflow-visible flex flex-col print:print-color-adjust-exact">
             {/* Header */}
             {renderModernHeader()}
 
@@ -1333,7 +1283,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
     return (
       <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
         <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
-          <div ref={containerRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="w-[210mm] min-h-[297mm] bg-white p-[15mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[10mm] print:h-auto print:overflow-visible">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[15mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:p-[10mm] print:h-auto print:overflow-visible print:print-color-adjust-exact">
             {/* Header */}
             <div className="text-center border-b-2 pb-6 mb-8 break-inside-avoid" style={{ borderColor: themeColor }}>
               <h1 className="text-3xl font-serif font-bold text-slate-900 mb-3 uppercase tracking-wider">
@@ -1520,8 +1470,7 @@ const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(({ raw, aiC
       <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
         <div
           ref={containerRef}
-          style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}
-          className="w-[210mm] min-h-[297mm] bg-white text-slate-800 relative mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible"
+          className="w-[210mm] min-h-[297mm] bg-white text-slate-800 relative mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible print:print-color-adjust-exact"
         >
           <div className="break-inside-avoid">
             <div className="p-8 pb-4">

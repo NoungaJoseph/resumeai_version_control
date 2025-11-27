@@ -8,90 +8,47 @@ import { PaymentModal } from './components/PaymentModal';
 import { LandingPage } from './components/LandingPage';
 import './index.css'
 
-// Translation Dictionary for App UI
+// UI Labels (English Only)
 const UI = {
-  en: {
-    new: "New",
-    clearData: "Clear all data and start a new session",
-    edit: "Edit",
-    preview: "Preview",
-    download: "Download PDF",
-    downloaded: "Downloaded",
-    unlock: "Download PDF (10 FCFA)",
-    loadSample: "Load Sample",
-    resume: "Resume",
-    cv: "CV",
-    coverLetter: "Cover Letter",
-    cvDetails: "CV Details",
-    resumeDetails: "Resume Details",
-    letterDetails: "Letter Details",
-    craftLetter: "Craft a persuasive letter.",
-    buildProfile: "Build your professional profile.",
-    matchingStyle: "Matching Style",
-    accentColor: "Accent Color",
-    targetRole: "Target Job Role",
-    recipientDetails: "Recipient Details",
-    jobContext: "Job Context",
-    personalInfo: "Personal Information",
-    workExperience: "Work Experience",
-    internships: "Internships",
-    volunteering: "Volunteering",
-    education: "Education",
-    projects: "Projects",
-    projectsResearch: "Projects / Research",
-    skillsExtra: "Skills & Extra",
-    generate: "Generate",
-    generating: "Generating...",
-    polishing: "Polishing with AI...",
-    success: "Success!",
-    addJob: "Add Job",
-    addInternship: "Add Internship",
-    addVolunteering: "Add Volunteering",
-    addSchool: "Add School",
-    addProject: "Add Project",
-    addEntry: "Add Entry"
-  },
-  fr: {
-    new: "Nouveau",
-    clearData: "Effacer les données et commencer une nouvelle session",
-    edit: "Éditer",
-    preview: "Aperçu",
-    download: "Télécharger PDF",
-    downloaded: "Téléchargé",
-    unlock: "Télécharger PDF (10 FCFA)",
-    loadSample: "Exemple",
-    resume: "CV Standard",
-    cv: "CV Expert",
-    coverLetter: "Lettre de Motivation",
-    cvDetails: "Détails du CV",
-    resumeDetails: "Détails du CV",
-    letterDetails: "Détails de la Lettre",
-    craftLetter: "Rédigez une lettre persuasive.",
-    buildProfile: "Construisez votre profil professionnel.",
-    matchingStyle: "Style Correspondant",
-    accentColor: "Couleur d'Accent",
-    targetRole: "Poste Visé",
-    recipientDetails: "Détails du Destinataire",
-    jobContext: "Contexte du Poste",
-    personalInfo: "Informations Personnelles",
-    workExperience: "Expérience Professionnelle",
-    internships: "Stages",
-    volunteering: "Bénévolat",
-    education: "Formation",
-    projects: "Projets",
-    projectsResearch: "Projets / Recherche",
-    skillsExtra: "Compétences & Extras",
-    generate: "Générer",
-    generating: "Génération...",
-    polishing: "Amélioration par IA...",
-    success: "Succès !",
-    addJob: "Ajouter Emploi",
-    addInternship: "Ajouter Stage",
-    addVolunteering: "Ajouter Bénévolat",
-    addSchool: "Ajouter École",
-    addProject: "Ajouter Projet",
-    addEntry: "Ajouter Entrée"
-  }
+  new: "New",
+  clearData: "Clear all data and start a new session",
+  edit: "Edit",
+  preview: "Preview",
+  download: "Download PDF",
+  downloaded: "Downloaded",
+  unlock: "Download PDF (10 FCFA)",
+  loadSample: "Load Sample",
+  resume: "Resume",
+  cv: "CV",
+  coverLetter: "Cover Letter",
+  cvDetails: "CV Details",
+  resumeDetails: "Resume Details",
+  letterDetails: "Letter Details",
+  craftLetter: "Craft a persuasive letter.",
+  buildProfile: "Build your professional profile.",
+  matchingStyle: "Matching Style",
+  accentColor: "Accent Color",
+  targetRole: "Target Job Role",
+  recipientDetails: "Recipient Details",
+  jobContext: "Job Context",
+  personalInfo: "Personal Information",
+  workExperience: "Work Experience",
+  internships: "Internships",
+  volunteering: "Volunteering",
+  education: "Education",
+  projects: "Projects",
+  projectsResearch: "Projects / Research",
+  skillsExtra: "Skills & Extra",
+  generate: "Generate",
+  generating: "Generating...",
+  polishing: "Polishing with AI...",
+  success: "Success!",
+  addJob: "Add Job",
+  addInternship: "Add Internship",
+  addVolunteering: "Add Volunteering",
+  addSchool: "Add School",
+  addProject: "Add Project",
+  addEntry: "Add Entry"
 };
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -114,11 +71,12 @@ const markSessionAsDownloaded = (sessionId: string) => {
 };
 
 // Locale-aware date formatter
-const formatDate = (dateStr: string, lang: 'en' | 'fr' = 'en') => {
+// Locale-aware date formatter
+const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
   const [year, month] = dateStr.split('-');
   const date = new Date(parseInt(year), parseInt(month) - 1);
-  return date.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', year: 'numeric' });
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 };
 
 const ROLES = [
@@ -322,7 +280,7 @@ export default function App() {
   });
 
   // Helper to get current UI text
-  const t = UI[data.language || 'en'];
+  const t = UI;
 
   const [aiOutput, setAiOutput] = useState<AIResumeOutput | null>(() => {
     if (typeof window !== 'undefined') {
@@ -370,7 +328,7 @@ export default function App() {
   const resetData = () => {
     if (confirm("This will clear ALL your current data and start a new session. Are you sure?")) {
       const newSessionId = generateSessionId();
-      const resetState = { ...INITIAL_DATA, language: data.language, sessionId: newSessionId };
+      const resetState = { ...INITIAL_DATA, sessionId: newSessionId };
 
       setData(resetState);
       setAiOutput(null);
@@ -557,8 +515,8 @@ export default function App() {
             updatedItem.endDate = '';
           }
 
-          const startStr = formatDate(updatedItem.startDate, prev.language);
-          const endStr = updatedItem.isCurrent ? (prev.language === 'fr' ? 'Présent' : 'Present') : formatDate(updatedItem.endDate, prev.language);
+          const startStr = formatDate(updatedItem.startDate);
+          const endStr = updatedItem.isCurrent ? 'Present' : formatDate(updatedItem.endDate);
 
           updatedItem.dates = startStr && endStr
             ? `${startStr} - ${endStr}`
@@ -658,22 +616,6 @@ export default function App() {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-3">
-            {/* Language Toggle */}
-            <div className="flex bg-slate-100 p-1 rounded-lg mr-2">
-              <button
-                onClick={() => switchLanguage('en')}
-                className={`px-2 py-1 text-xs font-bold rounded ${data.language === 'en' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}`}
-              >
-                EN
-              </button>
-              <button
-                onClick={() => switchLanguage('fr')}
-                className={`px-2 py-1 text-xs font-bold rounded ${data.language === 'fr' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}`}
-              >
-                FR
-              </button>
-            </div>
-
             <button
               onClick={loadSampleData}
               className="text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors hidden md:block"
