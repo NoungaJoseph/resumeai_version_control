@@ -1381,7 +1381,7 @@ export default function App() {
               </div>
             )}
 
-            <div className="w-full overflow-x-hidden overflow-y-auto print:overflow-visible max-h-[calc(100vh-8rem)] lg:max-h-none flex justify-center touch-pan-y">
+            <div className="w-full overflow-x-auto overflow-y-auto print:overflow-visible max-h-[calc(100vh-8rem)] lg:max-h-none flex justify-center touch-pan-y">
               <div className="transform origin-top scale-[0.55] sm:scale-[0.65] md:scale-[0.85] xl:scale-100 print:scale-100 print:transform-none">
                 <ResumePreview ref={printRef} raw={data} aiContent={aiOutput} aiCoverLetter={aiCoverLetter} />
               </div>
