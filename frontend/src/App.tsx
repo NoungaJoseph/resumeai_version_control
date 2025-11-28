@@ -1442,7 +1442,7 @@ export default function App() {
         </div>
 
         <div className={`flex-1 flex justify-center transition-opacity duration-300 ${activeTab === 'preview' ? 'block opacity-100' : 'hidden lg:block lg:w-2/3'} print:block print:w-full print:static`}>
-          <div className="sticky top-24 w-full print:static print:max-w-none print:w-full flex flex-col items-center">
+          <div className="w-full print:static print:max-w-none print:w-full flex flex-col items-center lg:sticky lg:top-24">
             {activeTab === 'preview' && !aiOutput && !aiCoverLetter && !isGenerating && (
               <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-800 rounded-xl text-sm print:hidden w-full max-w-lg">
                 {data.language === 'fr'
@@ -1452,8 +1452,8 @@ export default function App() {
               </div>
             )}
 
-            <div className="w-full overflow-hidden flex justify-center print:overflow-visible">
-              <div className="transform origin-top scale-[0.45] sm:scale-[0.65] md:scale-[0.85] xl:scale-100">
+            <div className="w-full overflow-x-hidden overflow-y-auto print:overflow-visible max-h-[calc(100vh-8rem)] lg:max-h-none flex justify-center touch-pan-y">
+              <div className="transform origin-top scale-[0.55] sm:scale-[0.65] md:scale-[0.85] xl:scale-100 print:scale-100 print:transform-none">
                 <ResumePreview ref={printRef} raw={data} aiContent={aiOutput} aiCoverLetter={aiCoverLetter} />
               </div>
             </div>
@@ -1540,10 +1540,17 @@ export default function App() {
             print-color-adjust: exact !important;
           }
           
+          /* Remove ALL scaling and transforms */
+          .transform {
+            transform: none !important;
+            scale: none !important;
+          }
+          
           html, body {
             margin: 0 !important;
             padding: 0 !important;
             width: 210mm !important;
+            max-width: 210mm !important;
             min-height: auto !important;
             height: auto !important;
           }
@@ -1552,8 +1559,20 @@ export default function App() {
           .preview-container-shadow,
           .shadow-xl {
             box-shadow: none !important;
-            margin: 0 !important;
+            margin: 0 auto !important;
             padding: 0 !important;
+            transform: none !important;
+            scale: 1 !important;
+          }
+          
+          /* Prevent blank pages */
+          * {
+            max-height: none !important;
+          }
+          
+          /* Hide empty space */
+          .min-h-\[297mm\] {
+            min-height: auto !important;
           }
           
           /* Page break control */

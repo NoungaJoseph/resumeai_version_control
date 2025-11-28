@@ -47,16 +47,22 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
     const originalTransform = containerRef.current.style.transform;
     const originalBorder = containerRef.current.style.border;
+    const originalScale = containerRef.current.style.scale;
 
-    // Reset for capture
+    // Reset for capture - IMPORTANT: Remove all transforms
     containerRef.current.style.transform = 'none';
+    containerRef.current.style.scale = '1';
 
     try {
       const canvas = await html2canvas(containerRef.current, {
-        scale: 3, // Increased quality
+        scale: 3,
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        width: 794, // A4 width in pixels at 96 DPI
+        height: 1123, // A4 height in pixels at 96 DPI
+        windowWidth: 794,
+        windowHeight: 1123
       });
 
       const link = document.createElement('a');
@@ -68,6 +74,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
       alert("Failed to generate image. Please try again.");
     } finally {
       containerRef.current.style.transform = originalTransform;
+      containerRef.current.style.scale = originalScale;
     }
   };
 
@@ -78,44 +85,6 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
   // Scaling Logic
   // Scaling Logic Removed - Allowing multi-page flow
-
-  // Anti-screenshot & Security
-  useEffect(() => {
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'PrintScreen') {
-        alert("Screenshots are disabled to protect personal information.");
-        document.body.style.filter = 'blur(20px)';
-        setTimeout(() => document.body.style.filter = 'none', 2000);
-      }
-    };
-
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-    };
-
-    // Blur on focus lost
-    const handleBlur = () => {
-      document.body.style.filter = 'blur(10px)';
-    };
-
-    const handleFocus = () => {
-      document.body.style.filter = 'none';
-    };
-
-    window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('contextmenu', handleContextMenu);
-
-    return () => {
-      window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('contextmenu', handleContextMenu);
-      // Cleanup styles
-      document.body.style.filter = 'none';
-    };
-  }, []);
 
   // --- HEADER RENDERERS FOR COVER LETTER REUSE ---
 
