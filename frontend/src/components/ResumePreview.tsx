@@ -55,7 +55,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
     try {
       const canvas = await html2canvas(containerRef.current, {
-        scale: 2, // Good balance between quality and file size
+        scale: 6, // Increased from 2 to 6 for 3x larger font sizes
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff'

@@ -377,19 +377,8 @@ export default function App() {
       if (printRef.current && printRef.current.downloadAsPDF) {
         try {
           await printRef.current.downloadAsPDF();
-
-          // Mark as downloaded after successful generation
-          if (data.sessionId) {
-            markSessionAsDownloaded(data.sessionId);
-            setData(prev => ({
-              ...prev,
-              hasDownloaded: true,
-              isPaid: false // Reset payment status after download as per original logic, or keep it? 
-              // User said "Remove the old “log download key” or any key system attached to the download."
-              // But also "After a successful payment, the PDF download should start automatically"
-              // I will keep the reset logic for now as it seems to be a "one-time pay" model per session/download.
-            }));
-          }
+          // No longer reset payment status or mark as downloaded
+          // Users can download unlimited times after payment
         } catch (error) {
           console.error("PDF Download failed", error);
           alert("Failed to generate PDF. Please try again.");
