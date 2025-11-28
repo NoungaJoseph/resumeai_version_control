@@ -34,7 +34,7 @@ export interface ProjectItem {
 export interface ResumeData {
   language: 'en' | 'fr'; // New field for bilingual support
   mode: 'resume' | 'cv' | 'cover-letter';
-  template: 'classic' | 'sidebar' | 'modern' | 'minimalist' | 'cv-academic' | 'cv-executive' | 'cv-corporate';
+  template: 'classic' | 'sidebar' | 'modern' | 'minimalist' | 'cv-academic' | 'cv-executive' | 'cv-corporate' | 'cv-professional' | 'cv-classic';
   themeColor: string; // Hex code
   fullName: string;
   email: string;
@@ -55,7 +55,7 @@ export interface ResumeData {
   achievements: string;
   publications: string;
   certifications: string;
-  
+
   // Cover Letter Specifics
   recipientName?: string;
   recipientRole?: string; // e.g. Hiring Manager
@@ -63,11 +63,11 @@ export interface ResumeData {
   companyAddress?: string;
   jobDescription?: string; // The JD to tailor the letter to
   coverLetterBody?: string; // The generated HTML/Text content
-  
+
   // Payment State
   isPaid: boolean;
   paymentReference?: string;
-  
+
   // Session Management
   sessionId?: string;
   hasDownloaded?: boolean;

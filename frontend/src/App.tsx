@@ -113,7 +113,7 @@ const COLORS = [
 const INITIAL_DATA: ResumeData = {
   language: 'en',
   mode: 'resume',
-  template: 'modern',
+  template: 'cv-professional',
   themeColor: '#1a2332',
   fullName: '',
   email: '',
@@ -488,7 +488,7 @@ export default function App() {
   const switchMode = (mode: 'resume' | 'cv' | 'cover-letter') => {
     if (mode !== data.mode) {
       let defaultTemplate = data.template;
-      if (mode === 'cv' && !data.template.startsWith('cv')) defaultTemplate = 'cv-corporate';
+      if (mode === 'cv' && !data.template.startsWith('cv')) defaultTemplate = 'cv-professional';
       if (mode === 'resume' && data.template.startsWith('cv')) defaultTemplate = 'modern';
 
       setData(prev => ({ ...prev, mode, template: defaultTemplate }));
@@ -791,9 +791,7 @@ export default function App() {
                       <option value="classic">Classic</option>
                       <option value="sidebar">Sidebar</option>
                       <option value="minimalist">Executive</option>
-                      <option value="cv-corporate">Corporate CV</option>
-                      <option value="cv-academic">Academic CV</option>
-                      <option value="cv-executive">Executive CV</option>
+                      <option value="cv-professional">Professional CV</option>
                     </select>
 
                     <div className="mt-5">
@@ -885,6 +883,7 @@ export default function App() {
                   </div>
                 </div>
               ) : (
+
                 <>
                   <section className="space-y-5">
                     <div>
@@ -931,37 +930,51 @@ export default function App() {
                               Executive
                             </button>
                           </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => updateField('template', 'cv-corporate')}
-                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-corporate'
-                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
-                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                }`}
-                            >
-                              Corporate (Photo)
-                            </button>
-                            <button
-                              onClick={() => updateField('template', 'cv-executive')}
-                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-executive'
-                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
-                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                }`}
-                            >
-                              Executive
-                            </button>
-                            <button
-                              onClick={() => updateField('template', 'cv-academic')}
-                              className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-academic'
-                                ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
-                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                }`}
-                            >
-                              Academic
-                            </button>
-                          </>
-                        )}
+                        ) : data.mode === 'cv' ? (
+                          <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                            <section>
+                              <label className="block text-sm font-semibold text-slate-700 mb-3">CV Template</label>
+                              <div className="grid grid-cols-1 gap-3">
+                                <button
+                                  onClick={() => updateField('template', 'cv-professional')}
+                                  className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-professional'
+                                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                    : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                    }`}
+                                >
+                                  Professional (Dark)
+                                </button>
+                                <button
+                                  onClick={() => updateField('template', 'cv-corporate')}
+                                  className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-corporate'
+                                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                    : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                    }`}
+                                >
+                                  Corporate (Gray)
+                                </button>
+                                <button
+                                  onClick={() => updateField('template', 'cv-classic')}
+                                  className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-classic'
+                                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                    : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                    }`}
+                                >
+                                  Classic (Border)
+                                </button>
+                                <button
+                                  onClick={() => updateField('template', 'cv-executive')}
+                                  className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-executive'
+                                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                    : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                    }`}
+                                >
+                                  Executive (Blue)
+                                </button>
+                              </div>
+                            </section>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
 
@@ -1460,6 +1473,28 @@ export default function App() {
       )}
 
       <style>{`
+        @media print {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          
+          .break-inside-avoid {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          
+          /* Ensure text doesn't overlap */
+          div, section, p, h1, h2, h3 {
+            position: relative;
+            z-index: auto;
+          }
+        }
         .input-field.enhanced {
           width: 100%;
           padding: 0.75rem 1rem;
@@ -1496,6 +1531,52 @@ export default function App() {
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+        /* CRITICAL: Prevent blank pages and fix PDF output */
+        @media print {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 210mm !important;
+            min-height: auto !important;
+            height: auto !important;
+          }
+          
+          /* Remove blank pages */
+          .preview-container-shadow,
+          .shadow-xl {
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          
+          /* Page break control */
+          .break-inside-avoid {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          
+          /* Prevent text overlap */
+          div, section, p, h1, h2, h3, ul, li {
+            position: relative !important;
+            z-index: auto !important;
+          }
+          
+          /* Max 2 pages */
+          @page {
+            size: A4;
+            margin: 0;
+          }
+          
+          /* Hide unnecessary elements */
+          nav, .print\\:hidden {
+            display: none !important;
           }
         }
       `}</style>
