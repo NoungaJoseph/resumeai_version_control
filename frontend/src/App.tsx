@@ -439,10 +439,7 @@ export default function App() {
   };
 
   const updateField = (field: keyof ResumeData, value: any) => {
-    // Use requestAnimationFrame to defer state updates and prevent INP issues
-    requestAnimationFrame(() => {
-      setData(prev => ({ ...prev, [field]: value }));
-    });
+    setData(prev => ({ ...prev, [field]: value }));
   };
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
