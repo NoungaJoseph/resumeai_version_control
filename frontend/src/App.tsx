@@ -303,7 +303,8 @@ export default function App() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
-  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+
+  // const [showDownloadMenu, setShowDownloadMenu] = useState(false); // Removed as per request
 
   const printRef = useRef<any>(null); // Updated type to allow method access
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -348,109 +349,58 @@ export default function App() {
   };
 
   const handlePaymentSuccess = () => {
-    const newSessionId = generateSessionId();
+    // Mark as paid first
     setData(prev => ({
       ...prev,
       isPaid: true,
-      hasDownloaded: false,
-      sessionId: newSessionId
+      hasDownloaded: false
     }));
     setIsPaymentModalOpen(false);
     setShowSuccessAnimation(true);
+
+    // Auto-trigger download after a brief delay to allow state update
+    setTimeout(() => {
+      executeDownload();
+    }, 500);
+
     setTimeout(() => setShowSuccessAnimation(false), 3000);
   };
 
   const executeDownload = () => {
-    const originalTitle = document.title;
-    if (data.fullName) {
-      const type = data.mode === 'cover-letter' ? 'Cover_Letter' : data.mode === 'cv' ? 'CV' : 'Resume';
-      document.title = `${data.fullName.replace(' ', '_')}_${type}`;
-    }
-
     // Ensure we are in preview mode
     if (activeTab !== 'preview') {
       setActiveTab('preview');
     }
 
-    // Small delay to allow render if needed, but short enough to try and keep user gesture
-    setTimeout(() => {
-      window.print();
-      document.title = originalTitle;
-
-      // Wait longer to ensure print dialog is used and PDF is saved before locking
-      setTimeout(() => {
-        if (data.sessionId) {
-          markSessionAsDownloaded(data.sessionId);
-          setData(prev => ({
-            ...prev,
-            hasDownloaded: true,
-            isPaid: false
-          }));
-        }
-      }, 5000); // Increased to 5 seconds to give user ample time to save PDF
-    }, 100);
-  };
-
-  const handleImageDownload = async (format: 'png' | 'jpeg' | 'svg') => {
-    if (!data.isPaid) {
-      setIsPaymentModalOpen(true);
-      return;
-    }
-
-    // Ensure we are in preview mode
-    if (activeTab !== 'preview') {
-      setActiveTab('preview');
-    }
-
-    setShowDownloadMenu(false);
-
-    // Use a very short timeout to allow state update but try to preserve user gesture
+    // Small delay to allow render if needed
     setTimeout(async () => {
-      if (printRef.current && printRef.current.downloadAsImage) {
+      if (printRef.current && printRef.current.downloadAsPDF) {
         try {
-          await printRef.current.downloadAsImage(format);
+          await printRef.current.downloadAsPDF();
 
-          // Wait to ensure download completes before locking
-          setTimeout(() => {
-            if (data.sessionId) {
-              markSessionAsDownloaded(data.sessionId);
-              setData(prev => ({
-                ...prev,
-                hasDownloaded: true,
-                isPaid: false
-              }));
-            }
-          }, 3000); // 3 second delay to ensure download completes
+          // Mark as downloaded after successful generation
+          if (data.sessionId) {
+            markSessionAsDownloaded(data.sessionId);
+            setData(prev => ({
+              ...prev,
+              hasDownloaded: true,
+              isPaid: false // Reset payment status after download as per original logic, or keep it? 
+              // User said "Remove the old “log download key” or any key system attached to the download."
+              // But also "After a successful payment, the PDF download should start automatically"
+              // I will keep the reset logic for now as it seems to be a "one-time pay" model per session/download.
+            }));
+          }
         } catch (error) {
-          console.error('Download failed:', error);
-          alert("Download failed. Please try again.");
+          console.error("PDF Download failed", error);
+          alert("Failed to generate PDF. Please try again.");
         }
       } else {
-        // If ref is not ready, try one more time with a slightly longer delay
-        setTimeout(async () => {
-          if (printRef.current && printRef.current.downloadAsImage) {
-            try {
-              await printRef.current.downloadAsImage(format);
-              setTimeout(() => {
-                if (data.sessionId) {
-                  markSessionAsDownloaded(data.sessionId);
-                  setData(prev => ({
-                    ...prev,
-                    hasDownloaded: true,
-                    isPaid: false
-                  }));
-                }
-              }, 3000);
-            } catch (e) {
-              alert("Download failed. Please try again.");
-            }
-          } else {
-            alert("Preview not ready. Please switch to Preview tab and try again.");
-          }
-        }, 500);
+        alert("Preview not ready. Please switch to Preview tab and try again.");
       }
-    }, 50);
+    }, 500);
   };
+
+  // Image download logic removed as per request
 
   const handleAiGenerate = async () => {
     if (!data.targetRole) {
@@ -692,19 +642,10 @@ export default function App() {
             </div>
 
             {/* Updated Download Button with Explicit Text */}
-            {/* Download Dropdown */}
+            {/* Updated Download Button - Direct Action */}
             <div className="relative">
               <button
-                onClick={() => {
-                  if (!data.isPaid) {
-                    setIsPaymentModalOpen(true);
-                  } else {
-                    if (activeTab !== 'preview') {
-                      setActiveTab('preview');
-                    }
-                    setShowDownloadMenu(!showDownloadMenu);
-                  }
-                }}
+                onClick={handleDownloadClick}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:scale-105 shadow-sm ${data.hasDownloaded
                   ? 'bg-slate-400 text-white cursor-not-allowed'
                   : data.isPaid
@@ -717,34 +658,13 @@ export default function App() {
                     <CheckIcon className="w-4 h-4" />
                     <span className="hidden sm:inline">{t.downloaded}</span>
                   </>
-                ) : data.isPaid ? (
-                  <>
-                    <DownloadIcon className="w-4 h-4" />
-                    <span className="hidden sm:inline">{t.download}</span>
-                  </>
                 ) : (
                   <>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                      <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
-                    </svg>
-                    <span className="hidden sm:inline">{t.unlock}</span>
+                    <DownloadIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">{data.isPaid ? t.download : t.download}</span>
                   </>
                 )}
               </button>
-
-              {showDownloadMenu && data.isPaid && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
-                  <button onClick={handleDownloadClick} className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-50">
-                    <span className="font-bold text-red-500">PDF</span> (Best for Print)
-                  </button>
-                  <button onClick={() => handleImageDownload('png')} className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                    <span className="font-bold text-blue-500">PNG</span> (High Quality)
-                  </button>
-                  <button onClick={() => handleImageDownload('jpeg')} className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                    <span className="font-bold text-green-500">JPG</span> (Small Size)
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -997,16 +917,36 @@ export default function App() {
 
                   <section>
                     <label className="block text-sm font-semibold text-slate-700 mb-3">Target Job Role / Niche</label>
-                    <select
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white hover:border-slate-400"
-                      value={data.targetRole}
-                      onChange={(e) => updateField('targetRole', e.target.value)}
-                    >
-                      <option value="" disabled>Select a niche...</option>
-                      {ROLES.map(role => (
-                        <option key={role} value={role}>{role}</option>
-                      ))}
-                    </select>
+                    <div className="space-y-3">
+                      <select
+                        className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white hover:border-slate-400"
+                        value={ROLES.includes(data.targetRole) ? data.targetRole : 'Other'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'Other') {
+                            updateField('targetRole', ''); // Clear to allow typing
+                          } else {
+                            updateField('targetRole', val);
+                          }
+                        }}
+                      >
+                        <option value="" disabled>Select a niche...</option>
+                        {ROLES.map(role => (
+                          <option key={role} value={role}>{role}</option>
+                        ))}
+                      </select>
+
+                      {(!ROLES.includes(data.targetRole) || data.targetRole === 'Other' || data.targetRole === '') && (
+                        <input
+                          type="text"
+                          placeholder="Enter your specific job role..."
+                          className="input-field enhanced animate-in fade-in slide-in-from-top-2"
+                          value={data.targetRole === 'Other' ? '' : data.targetRole}
+                          onChange={(e) => updateField('targetRole', e.target.value)}
+                          autoFocus
+                        />
+                      )}
+                    </div>
                   </section>
 
                   <section className="space-y-4">

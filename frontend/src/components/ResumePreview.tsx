@@ -1,6 +1,7 @@
 
 import React, { forwardRef, useRef, useImperativeHandle, useLayoutEffect, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { ResumeData, AIResumeOutput, AICoverLetterOutput } from '../types';
 import { MailIcon, PhoneIcon, MapPinIcon, GlobeIcon } from './Icons';
 
@@ -42,36 +43,54 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
 
 
-  const downloadAsImage = async (format: 'png' | 'jpeg' | 'svg' = 'png') => {
+  const downloadAsPDF = async () => {
     if (!containerRef.current) return;
 
     const originalTransform = containerRef.current.style.transform;
-    const originalBorder = containerRef.current.style.border;
     const originalScale = containerRef.current.style.scale;
 
-    // Reset for capture - IMPORTANT: Remove all transforms
+    // Reset for capture
     containerRef.current.style.transform = 'none';
     containerRef.current.style.scale = '1';
 
     try {
       const canvas = await html2canvas(containerRef.current, {
-        scale: 3,
+        scale: 2, // Good balance between quality and file size
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff',
-        width: 794, // A4 width in pixels at 96 DPI
-        height: 1123, // A4 height in pixels at 96 DPI
-        windowWidth: 794,
-        windowHeight: 1123
+        backgroundColor: '#ffffff'
       });
 
-      const link = document.createElement('a');
-      link.download = `${raw.fullName || 'resume'}_${raw.mode}.${format}`;
-      link.href = canvas.toDataURL(`image/${format}`);
-      link.click();
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Sanitize filename
+      const safeName = (raw.fullName || 'resume').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      pdf.save(`${safeName}.pdf`);
+
     } catch (err) {
-      console.error("Image generation failed", err);
-      alert("Failed to generate image. Please try again.");
+      console.error("PDF generation failed", err);
+      alert("Failed to generate PDF. Please try again.");
     } finally {
       containerRef.current.style.transform = originalTransform;
       containerRef.current.style.scale = originalScale;
@@ -80,7 +99,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
   useImperativeHandle(ref, () => ({
     getElement: () => containerRef.current,
-    downloadAsImage
+    downloadAsPDF
   }) as any);
 
   // Scaling Logic
@@ -101,17 +120,17 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
           </div>
         )}
         <div>
-          <h1 className="text-3xl font-bold uppercase tracking-wide mb-2 text-white">{raw.fullName || "Your Name"}</h1>
-          <p className="text-lg font-light text-white/90">{raw.targetRole || "Professional Title"}</p>
+          <h1 className="text-4xl font-bold uppercase tracking-wide mb-2 text-white">{raw.fullName || "Your Name"}</h1>
+          <p className="text-xl font-light text-white/90">{raw.targetRole || "Professional Title"}</p>
         </div>
       </div>
 
-      <div className="text-right text-sm font-medium text-white/90 space-y-2 relative z-10 hidden sm:block">
-        {raw.email && <div className="flex items-center justify-end gap-3"><span>{raw.email}</span><MailIcon className="w-4 h-4 opacity-80" /></div>}
-        {raw.phone && <div className="flex items-center justify-end gap-3"><span>{raw.phone}</span><PhoneIcon className="w-4 h-4 opacity-80" /></div>}
-        {raw.location && <div className="flex items-center justify-end gap-3"><span>{raw.location}</span><MapPinIcon className="w-4 h-4 opacity-80" /></div>}
-        {raw.linkedin && <div className="flex items-center justify-end gap-3"><span>{raw.linkedin.replace(/^https?:\/\//, '')}</span><GlobeIcon className="w-4 h-4 opacity-80" /></div>}
-        {raw.website && <div className="flex items-center justify-end gap-3"><span>{raw.website.replace(/^https?:\/\//, '')}</span><GlobeIcon className="w-4 h-4 opacity-80" /></div>}
+      <div className="text-right text-base font-medium text-white/90 space-y-2 relative z-10 hidden sm:block">
+        {raw.email && <div className="flex items-center justify-end gap-3"><span>{raw.email}</span><MailIcon className="w-5 h-5 opacity-80" /></div>}
+        {raw.phone && <div className="flex items-center justify-end gap-3"><span>{raw.phone}</span><PhoneIcon className="w-5 h-5 opacity-80" /></div>}
+        {raw.location && <div className="flex items-center justify-end gap-3"><span>{raw.location}</span><MapPinIcon className="w-5 h-5 opacity-80" /></div>}
+        {raw.linkedin && <div className="flex items-center justify-end gap-3"><span>{raw.linkedin.replace(/^https?:\/\//, '')}</span><GlobeIcon className="w-5 h-5 opacity-80" /></div>}
+        {raw.website && <div className="flex items-center justify-end gap-3"><span>{raw.website.replace(/^https?:\/\//, '')}</span><GlobeIcon className="w-5 h-5 opacity-80" /></div>}
       </div>
     </header>
   );
@@ -119,8 +138,8 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
   // 2. MODERN/SIDEBAR HEADER (Simple, Color text)
   const renderModernHeader = () => (
     <div className="p-10 pb-6 border-b break-inside-avoid" style={{ borderColor: themeColor }}>
-      <h1 className="text-4xl font-bold mb-2" style={{ color: themeColor }}>{raw.fullName || "Your Name"}</h1>
-      <div className="text-sm text-slate-600 flex flex-wrap gap-x-4 items-center">
+      <h1 className="text-5xl font-bold mb-2" style={{ color: themeColor }}>{raw.fullName || "Your Name"}</h1>
+      <div className="text-base text-slate-600 flex flex-wrap gap-x-4 items-center">
         {raw.location && <span>{raw.location}</span>}
         {raw.email && <span>• {raw.email}</span>}
         {raw.phone && <span>• {raw.phone}</span>}
@@ -146,10 +165,10 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
   // 3. CLASSIC HEADER (Centered, Serif/Sans)
   const renderClassicHeader = () => (
     <header className="border-b-2 pb-6 mb-6 break-inside-avoid" style={{ borderColor: themeColor }}>
-      <h1 className="text-4xl font-serif font-bold uppercase tracking-wide mb-2" style={{ color: themeColor }}>
+      <h1 className="text-5xl font-serif font-bold uppercase tracking-wide mb-2" style={{ color: themeColor }}>
         {raw.fullName || "Your Name"}
       </h1>
-      <div className="text-sm text-slate-600 flex flex-wrap gap-x-4 gap-y-1 items-center">
+      <div className="text-base text-slate-600 flex flex-wrap gap-x-4 gap-y-1 items-center">
         {raw.location && <span>{raw.location}</span>}
         {raw.email && <span>• {raw.email}</span>}
         {raw.phone && <span>• {raw.phone}</span>}
@@ -182,13 +201,13 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
           </div>
         )}
         <div>
-          <h1 className="text-3xl font-bold uppercase tracking-tight mb-2 text-slate-900">
+          <h1 className="text-4xl font-bold uppercase tracking-tight mb-2 text-slate-900">
             {raw.fullName || "Your Name"}
           </h1>
-          <p className="text-lg font-medium text-slate-500">{raw.targetRole || "Senior Professional"}</p>
+          <p className="text-xl font-medium text-slate-500">{raw.targetRole || "Senior Professional"}</p>
         </div>
       </div>
-      <div className="text-right text-sm text-slate-600 space-y-1">
+      <div className="text-right text-base text-slate-600 space-y-1">
         {raw.email && <div>{raw.email}</div>}
         {raw.phone && <div>{raw.phone}</div>}
         {raw.location && <div>{raw.location}</div>}
@@ -253,25 +272,25 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
             )}
 
             {/* Letter Content - COMPACT FOR 1-2 PAGES MAX */}
-            <div className="flex-1 p-8 text-slate-700 leading-normal space-y-3">
+            <div className="flex-1 p-8 text-slate-700 leading-normal space-y-4">
 
               {/* Date & Recipient */}
-              <div className="mb-5 break-inside-avoid">
-                <p className="text-xs text-slate-500 mb-3">{today}</p>
-                <div className="text-sm">
+              <div className="mb-6 break-inside-avoid">
+                <p className="text-sm text-slate-500 mb-4">{today}</p>
+                <div className="text-base">
                   <p className="font-bold text-slate-900">{raw.recipientName || "Hiring Manager"}</p>
                   {raw.recipientRole && <p className="text-slate-700">{raw.recipientRole}</p>}
                   <p className="font-semibold text-slate-900 mt-1">{raw.companyName || "Company Name"}</p>
-                  {raw.companyAddress && <p className="text-xs text-slate-600 whitespace-pre-line mt-0.5">{raw.companyAddress}</p>}
+                  {raw.companyAddress && <p className="text-sm text-slate-600 whitespace-pre-line mt-0.5">{raw.companyAddress}</p>}
                 </div>
               </div>
 
               {/* Letter Body - REDUCED SPACING */}
-              <div className="space-y-2.5 text-xs leading-relaxed">
+              <div className="space-y-3 text-sm leading-relaxed">
                 {aiCoverLetter ? (
                   <>
                     {aiCoverLetter.subject && (
-                      <p className="font-bold text-slate-900 text-sm mb-2">{aiCoverLetter.subject}</p>
+                      <p className="font-bold text-slate-900 text-base mb-3">{aiCoverLetter.subject}</p>
                     )}
                     <p>{aiCoverLetter.salutation}</p>
                     <p>{aiCoverLetter.opening}</p>
@@ -279,17 +298,17 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                       <p key={idx}>{para}</p>
                     ))}
                     <p className="font-medium">{aiCoverLetter.closing}</p>
-                    <div className="mt-6">
+                    <div className="mt-8">
                       <p className="mb-1">{aiCoverLetter.signOff}</p>
-                      <p className="font-bold text-slate-900 text-base">{raw.fullName}</p>
+                      <p className="font-bold text-slate-900 text-lg">{raw.fullName}</p>
                     </div>
                   </>
                 ) : (
-                  <div className="opacity-50 italic space-y-2.5">
+                  <div className="opacity-50 italic space-y-3">
                     <p>Dear Hiring Manager,</p>
                     <p>I am writing to express my strong interest in the {raw.targetRole || "[Job Title]"} position at {raw.companyName || "[Company Name]"}.</p>
                     <p>[Generate your cover letter to see professional content here...]</p>
-                    <p className="mt-6">Sincerely,</p>
+                    <p className="mt-8">Sincerely,</p>
                     <p className="font-bold">{raw.fullName}</p>
                   </div>
                 )}
@@ -843,11 +862,11 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {dataToRender.summary && (
                 <section className="break-inside-avoid">
                   <div className="bg-slate-100 text-center py-2 mb-3 rounded">
-                    <h2 className="text-xs font-bold uppercase tracking-widest text-slate-700">
+                    <h2 className="text-sm font-bold uppercase tracking-widest text-slate-700">
                       Professional Summary
                     </h2>
                   </div>
-                  <p className="text-[11px] leading-relaxed text-slate-800 text-justify px-2">
+                  <p className="text-xs leading-relaxed text-slate-800 text-justify px-2">
                     {dataToRender.summary}
                   </p>
                 </section>
@@ -857,7 +876,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {dataToRender.skills.length > 0 && (
                 <section className="break-inside-avoid">
                   <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
-                    <h2 className="text-xs font-bold uppercase tracking-widest">
+                    <h2 className="text-sm font-bold uppercase tracking-widest">
                       Core Competencies
                     </h2>
                   </div>
@@ -865,7 +884,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                     {dataToRender.skills.map((skill, idx) => (
                       <div key={idx} className="flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-800 shrink-0"></span>
-                        <span className="text-[11px] text-slate-700">{skill}</span>
+                        <span className="text-xs text-slate-700">{skill}</span>
                       </div>
                     ))}
                   </div>
@@ -876,7 +895,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {dataToRender.experience.length > 0 && (
                 <section>
                   <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
-                    <h2 className="text-xs font-bold uppercase tracking-widest">
+                    <h2 className="text-sm font-bold uppercase tracking-widest">
                       Work Experiences
                     </h2>
                   </div>
@@ -885,23 +904,23 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                       <div key={idx} className="break-inside-avoid">
                         <div className="flex justify-between items-start mb-1.5">
                           <div className="flex-1">
-                            <h3 className="text-sm font-bold text-slate-900">{exp.role}</h3>
-                            <p className="text-xs text-slate-700 font-semibold flex items-center gap-2 mt-0.5">
+                            <h3 className="text-base font-bold text-slate-900">{exp.role}</h3>
+                            <p className="text-sm text-slate-700 font-semibold flex items-center gap-2 mt-0.5">
                               <span className="text-blue-600 text-base">★</span>
                               {exp.company}
                             </p>
                           </div>
-                          <span className="text-xs text-slate-600 font-medium whitespace-nowrap ml-4">
+                          <span className="text-sm text-slate-600 font-medium whitespace-nowrap ml-4">
                             {exp.dates}
                           </span>
                         </div>
 
                         {/* Achievements Section */}
                         <div className="mb-2">
-                          <p className="text-[10px] font-bold text-slate-700 uppercase mb-1">Achievements:</p>
+                          <p className="text-xs font-bold text-slate-700 uppercase mb-1">Achievements:</p>
                           <ul className="list-disc list-outside ml-4 space-y-0.5">
                             {exp.bullets.slice(0, 3).map((bullet, bIdx) => (
-                              <li key={bIdx} className="text-[11px] text-slate-700 leading-tight">
+                              <li key={bIdx} className="text-xs text-slate-700 leading-tight">
                                 {bullet}
                               </li>
                             ))}
@@ -917,7 +936,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {dataToRender.internships.length > 0 && (
                 <section>
                   <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
-                    <h2 className="text-xs font-bold uppercase tracking-widest">
+                    <h2 className="text-sm font-bold uppercase tracking-widest">
                       Internship
                     </h2>
                   </div>
@@ -926,19 +945,19 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                       <div key={idx} className="break-inside-avoid">
                         <div className="flex justify-between items-start mb-1.5">
                           <div className="flex-1">
-                            <h3 className="text-sm font-bold text-slate-900">{int.role}</h3>
-                            <p className="text-xs text-slate-700 font-semibold flex items-center gap-2 mt-0.5">
+                            <h3 className="text-base font-bold text-slate-900">{int.role}</h3>
+                            <p className="text-sm text-slate-700 font-semibold flex items-center gap-2 mt-0.5">
                               <span className="text-blue-600 text-base">★</span>
                               {int.company}
                             </p>
                           </div>
-                          <span className="text-xs text-slate-600 font-medium whitespace-nowrap ml-4">
+                          <span className="text-sm text-slate-600 font-medium whitespace-nowrap ml-4">
                             {int.dates}
                           </span>
                         </div>
                         <ul className="list-disc list-outside ml-4 space-y-0.5">
                           {int.bullets.slice(0, 2).map((bullet, bIdx) => (
-                            <li key={bIdx} className="text-[11px] text-slate-700 leading-tight">
+                            <li key={bIdx} className="text-xs text-slate-700 leading-tight">
                               {bullet}
                             </li>
                           ))}
@@ -953,15 +972,15 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {raw.education.length > 0 && (
                 <section className="break-inside-avoid">
                   <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
-                    <h2 className="text-xs font-bold uppercase tracking-widest">
+                    <h2 className="text-sm font-bold uppercase tracking-widest">
                       Educational Qualifications
                     </h2>
                   </div>
                   <div className="space-y-2 px-2">
                     {raw.education.map((edu, idx) => (
                       <div key={idx}>
-                        <h3 className="text-sm font-bold text-slate-900">{edu.degree}</h3>
-                        <p className="text-xs text-slate-700">{edu.school} | GPA: 3.50/4.00</p>
+                        <h3 className="text-base font-bold text-slate-900">{edu.degree}</h3>
+                        <p className="text-sm text-slate-700">{edu.school} | GPA: 3.50/4.00</p>
                       </div>
                     ))}
                   </div>
@@ -972,13 +991,13 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {dataToRender.certifications && dataToRender.certifications.length > 0 && (
                 <section className="break-inside-avoid">
                   <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
-                    <h2 className="text-xs font-bold uppercase tracking-widest">
+                    <h2 className="text-sm font-bold uppercase tracking-widest">
                       Certifications
                     </h2>
                   </div>
                   <ul className="space-y-1 px-2">
                     {dataToRender.certifications.slice(0, 3).map((cert, idx) => (
-                      <li key={idx} className="text-[11px] text-slate-700 flex items-start gap-2">
+                      <li key={idx} className="text-xs text-slate-700 flex items-start gap-2">
                         <span className="text-slate-800 font-bold">•</span>
                         {cert}
                       </li>
@@ -990,11 +1009,11 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {/* Tools & Tech */}
               <section className="break-inside-avoid">
                 <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
-                  <h2 className="text-xs font-bold uppercase tracking-widest">
+                  <h2 className="text-sm font-bold uppercase tracking-widest">
                     Tools and Tech
                   </h2>
                 </div>
-                <p className="text-[11px] text-slate-700 px-2">
+                <p className="text-xs text-slate-700 px-2">
                   {dataToRender.skills.slice(0, 8).join(' • ')}
                 </p>
               </section>
@@ -1003,13 +1022,13 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {dataToRender.achievements && dataToRender.achievements.length > 0 && (
                 <section className="break-inside-avoid">
                   <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
-                    <h2 className="text-xs font-bold uppercase tracking-widest">
+                    <h2 className="text-sm font-bold uppercase tracking-widest">
                       Extracurricular Activities
                     </h2>
                   </div>
                   <ul className="space-y-1 px-2">
                     {dataToRender.achievements.slice(0, 2).map((ach, idx) => (
-                      <li key={idx} className="text-[11px] text-slate-700">
+                      <li key={idx} className="text-xs text-slate-700">
                         <span className="font-bold">• </span>{ach}
                       </li>
                     ))}
@@ -1020,7 +1039,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {/* Languages */}
               {dataToRender.languages && dataToRender.languages.length > 0 && (
                 <section className="break-inside-avoid">
-                  <p className="text-[11px] text-slate-700 px-2">
+                  <p className="text-xs text-slate-700 px-2">
                     <span className="font-bold uppercase">Languages: </span>
                     {dataToRender.languages.join(' | ')}
                   </p>
@@ -1029,10 +1048,10 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* References */}
               <section className="break-inside-avoid">
-                <p className="text-xs text-slate-700 font-bold uppercase px-2">
+                <p className="text-sm text-slate-700 font-bold uppercase px-2">
                   References:
                 </p>
-                <p className="text-[11px] text-slate-600 italic px-2">
+                <p className="text-xs text-slate-600 italic px-2">
                   Available upon request.
                 </p>
               </section>
@@ -1088,7 +1107,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {dataToRender.summary && (
                 <div className="mt-4 pt-4 border-t border-white/20">
-                  <p className="text-xs text-slate-100 leading-relaxed">
+                  <p className="text-sm text-slate-100 leading-relaxed">
                     {dataToRender.summary}
                   </p>
                 </div>
@@ -1102,7 +1121,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {dataToRender.skills.length > 0 && (
                 <section className="break-inside-avoid">
                   <div className="bg-slate-700 text-white text-center py-2 mb-3 rounded">
-                    <h2 className="text-xs font-bold uppercase tracking-widest">
+                    <h2 className="text-sm font-bold uppercase tracking-widest">
                       Core Competencies
                     </h2>
                   </div>
@@ -1110,7 +1129,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                     {dataToRender.skills.map((skill, idx) => (
                       <div key={idx} className="flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-700 shrink-0"></span>
-                        <span className="text-[11px] text-slate-700">{skill}</span>
+                        <span className="text-xs text-slate-700">{skill}</span>
                       </div>
                     ))}
                   </div>
@@ -1121,7 +1140,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {dataToRender.experience.length > 0 && (
                 <section>
                   <div className="bg-slate-700 text-white text-center py-2 mb-3 rounded">
-                    <h2 className="text-xs font-bold uppercase tracking-widest">
+                    <h2 className="text-sm font-bold uppercase tracking-widest">
                       Work Experiences
                     </h2>
                   </div>
@@ -1130,22 +1149,22 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                       <div key={idx} className="break-inside-avoid">
                         <div className="flex justify-between items-start mb-1">
                           <div className="flex-1">
-                            <h3 className="text-sm font-bold text-slate-900">{exp.role}</h3>
-                            <p className="text-xs text-slate-700 font-bold flex items-center gap-2 mt-0.5">
+                            <h3 className="text-base font-bold text-slate-900">{exp.role}</h3>
+                            <p className="text-sm text-slate-700 font-bold flex items-center gap-2 mt-0.5">
                               <span className="text-yellow-600">★</span>
                               {exp.company}
                             </p>
                           </div>
-                          <span className="text-xs text-slate-600 font-medium whitespace-nowrap ml-4">
+                          <span className="text-sm text-slate-600 font-medium whitespace-nowrap ml-4">
                             {exp.dates}
                           </span>
                         </div>
 
                         <div className="mb-1.5">
-                          <p className="text-[10px] font-bold text-slate-700 uppercase">Achievements:</p>
+                          <p className="text-xs font-bold text-slate-700 uppercase">Achievements:</p>
                           <ul className="list-disc list-outside ml-4 space-y-0.5">
                             {exp.bullets.slice(0, 3).map((bullet, bIdx) => (
-                              <li key={bIdx} className="text-[11px] text-slate-700 leading-tight">
+                              <li key={bIdx} className="text-xs text-slate-700 leading-tight">
                                 {bullet}
                               </li>
                             ))}
@@ -1161,15 +1180,15 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {raw.education.length > 0 && (
                 <section className="break-inside-avoid">
                   <div className="bg-slate-700 text-white text-center py-2 mb-3 rounded">
-                    <h2 className="text-xs font-bold uppercase tracking-widest">
+                    <h2 className="text-sm font-bold uppercase tracking-widest">
                       Educational Qualifications
                     </h2>
                   </div>
                   <div className="space-y-2 px-2">
                     {raw.education.map((edu, idx) => (
                       <div key={idx}>
-                        <h3 className="text-sm font-bold text-slate-900">{edu.degree}</h3>
-                        <p className="text-xs text-slate-700">{edu.school}</p>
+                        <h3 className="text-base font-bold text-slate-900">{edu.degree}</h3>
+                        <p className="text-sm text-slate-700">{edu.school}</p>
                       </div>
                     ))}
                   </div>
@@ -1180,13 +1199,13 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {dataToRender.certifications && dataToRender.certifications.length > 0 && (
                 <section className="break-inside-avoid">
                   <div className="bg-slate-700 text-white text-center py-2 mb-3 rounded">
-                    <h2 className="text-xs font-bold uppercase tracking-widest">
+                    <h2 className="text-sm font-bold uppercase tracking-widest">
                       Certifications
                     </h2>
                   </div>
                   <ul className="space-y-1 px-2">
                     {dataToRender.certifications.slice(0, 2).map((cert, idx) => (
-                      <li key={idx} className="text-[11px] text-slate-700">
+                      <li key={idx} className="text-xs text-slate-700">
                         <span className="font-bold">• </span>{cert}
                       </li>
                     ))}
@@ -1196,8 +1215,8 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* References */}
               <section className="break-inside-avoid">
-                <p className="text-xs text-slate-700 font-bold uppercase px-2">References:</p>
-                <p className="text-[11px] text-slate-600 italic px-2">Available upon Request.</p>
+                <p className="text-sm text-slate-700 font-bold uppercase px-2">References:</p>
+                <p className="text-xs text-slate-600 italic px-2">Available upon Request.</p>
               </section>
             </div>
 
@@ -1241,7 +1260,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 </div>
 
                 {dataToRender.summary && (
-                  <p className="mt-3 text-[11px] text-slate-700 leading-relaxed">
+                  <p className="mt-3 text-xs text-slate-700 leading-relaxed">
                     {dataToRender.summary}
                   </p>
                 )}
@@ -1254,24 +1273,24 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {/* Work Experience */}
               {dataToRender.experience.length > 0 && (
                 <section>
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
+                  <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
                     Work Experience
                   </h2>
                   <div className="space-y-4">
                     {dataToRender.experience.map((exp, idx) => (
                       <div key={idx} className="break-inside-avoid">
                         <div className="mb-1">
-                          <h3 className="text-sm font-bold text-slate-900">Your Designation</h3>
-                          <p className="text-xs text-slate-700 font-bold flex items-center gap-2 mt-0.5">
+                          <h3 className="text-base font-bold text-slate-900">Your Designation</h3>
+                          <p className="text-sm text-slate-700 font-bold flex items-center gap-2 mt-0.5">
                             <span className="text-red-600">■</span>
                             {exp.company}
                           </p>
-                          <p className="text-xs text-slate-600 italic">{exp.dates}</p>
+                          <p className="text-sm text-slate-600 italic">{exp.dates}</p>
                         </div>
 
                         <ul className="list-disc list-outside ml-4 space-y-0.5">
                           {exp.bullets.slice(0, 3).map((bullet, bIdx) => (
-                            <li key={bIdx} className="text-[11px] text-slate-700 leading-tight">
+                            <li key={bIdx} className="text-xs text-slate-700 leading-tight">
                               {bullet}
                             </li>
                           ))}
@@ -1285,14 +1304,14 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {/* Education */}
               {raw.education.length > 0 && (
                 <section className="break-inside-avoid">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
+                  <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
                     Educational Qualifications
                   </h2>
                   <div className="space-y-2">
                     {raw.education.map((edu, idx) => (
                       <div key={idx}>
-                        <h3 className="text-sm font-bold text-slate-900">{edu.degree}</h3>
-                        <p className="text-xs text-slate-700">{edu.school}</p>
+                        <h3 className="text-base font-bold text-slate-900">{edu.degree}</h3>
+                        <p className="text-sm text-slate-700">{edu.school}</p>
                       </div>
                     ))}
                   </div>
@@ -1302,10 +1321,10 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {/* Core Competencies */}
               {dataToRender.skills.length > 0 && (
                 <section className="break-inside-avoid">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
+                  <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
                     Core Competencies
                   </h2>
-                  <p className="text-[11px] text-slate-700 leading-relaxed">
+                  <p className="text-xs text-slate-700 leading-relaxed">
                     {dataToRender.skills.join(' • ')}
                   </p>
                 </section>
@@ -1313,20 +1332,20 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Tools & Tech */}
               <section className="break-inside-avoid">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
+                <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
                   Tools & Tech
                 </h2>
-                <p className="text-[11px] text-slate-700">
+                <p className="text-xs text-slate-700">
                   MS Office • Google Docs • Mail Management • CRM Software • HRIS
                 </p>
               </section>
 
               {/* References */}
               <section className="break-inside-avoid">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
+                <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
                   References
                 </h2>
-                <p className="text-[11px] text-slate-600 italic">Available upon Request.</p>
+                <p className="text-xs text-slate-600 italic">Available upon Request.</p>
               </section>
             </div>
 
@@ -1369,7 +1388,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
 
                   {dataToRender.summary && (
-                    <p className="mt-3 text-[11px] text-slate-700 leading-relaxed">
+                    <p className="mt-3 text-xs text-slate-700 leading-relaxed">
                       {dataToRender.summary}
                     </p>
                   )}
@@ -1383,24 +1402,24 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {/* Work Experience */}
               {dataToRender.experience.length > 0 && (
                 <section>
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-blue-600 border-b-2 border-blue-600 pb-1 mb-3">
+                  <h2 className="text-base font-bold uppercase tracking-wider text-blue-600 border-b-2 border-blue-600 pb-1 mb-3">
                     Work Experience
                   </h2>
                   <div className="space-y-4">
                     {dataToRender.experience.map((exp, idx) => (
                       <div key={idx} className="break-inside-avoid">
                         <div className="mb-1">
-                          <h3 className="text-sm font-bold text-slate-900">{exp.role}</h3>
-                          <p className="text-xs text-slate-700 font-bold flex items-center gap-2 mt-0.5">
+                          <h3 className="text-base font-bold text-slate-900">{exp.role}</h3>
+                          <p className="text-sm text-slate-700 font-bold flex items-center gap-2 mt-0.5">
                             <span className="text-blue-600">■</span>
                             {exp.company}
                           </p>
-                          <p className="text-xs text-slate-600 italic">{exp.dates}</p>
+                          <p className="text-sm text-slate-600 italic">{exp.dates}</p>
                         </div>
 
                         <ul className="list-disc list-outside ml-4 space-y-0.5">
                           {exp.bullets.slice(0, 3).map((bullet, bIdx) => (
-                            <li key={bIdx} className="text-[11px] text-slate-700 leading-tight">
+                            <li key={bIdx} className="text-xs text-slate-700 leading-tight">
                               {bullet}
                             </li>
                           ))}
@@ -1414,14 +1433,14 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {/* Education */}
               {raw.education.length > 0 && (
                 <section className="break-inside-avoid">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-blue-600 border-b-2 border-blue-600 pb-1 mb-3">
+                  <h2 className="text-base font-bold uppercase tracking-wider text-blue-600 border-b-2 border-blue-600 pb-1 mb-3">
                     Educational Qualifications
                   </h2>
                   <div className="space-y-2">
                     {raw.education.map((edu, idx) => (
                       <div key={idx}>
-                        <h3 className="text-sm font-bold text-slate-900">{edu.degree}</h3>
-                        <p className="text-xs text-slate-700">{edu.school}</p>
+                        <h3 className="text-base font-bold text-slate-900">{edu.degree}</h3>
+                        <p className="text-sm text-slate-700">{edu.school}</p>
                       </div>
                     ))}
                   </div>
@@ -1431,10 +1450,10 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {/* Core Competencies */}
               {dataToRender.skills.length > 0 && (
                 <section className="break-inside-avoid">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-blue-600 border-b-2 border-blue-600 pb-1 mb-3">
+                  <h2 className="text-base font-bold uppercase tracking-wider text-blue-600 border-b-2 border-blue-600 pb-1 mb-3">
                     Core Competencies
                   </h2>
-                  <p className="text-[11px] text-slate-700 leading-relaxed">
+                  <p className="text-xs text-slate-700 leading-relaxed">
                     {dataToRender.skills.join(' • ')}
                   </p>
                 </section>
@@ -1442,10 +1461,10 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Tools & Tech */}
               <section className="break-inside-avoid">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-blue-600 border-b-2 border-blue-600 pb-1 mb-3">
+                <h2 className="text-base font-bold uppercase tracking-wider text-blue-600 border-b-2 border-blue-600 pb-1 mb-3">
                   Tools & Tech
                 </h2>
-                <p className="text-[11px] text-slate-700">
+                <p className="text-xs text-slate-700">
                   MS Office • Google Docs • Mail Management • CRM Software • HRIS
                 </p>
               </section>
