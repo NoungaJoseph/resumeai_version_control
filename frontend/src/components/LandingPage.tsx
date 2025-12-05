@@ -338,7 +338,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                     onClick={onStart}
                     className="bg-coral hover:bg-coral/80 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all hover:scale-105 shadow-lg shadow-coral/20"
                   >
-                    Start Free Trial
+                    Get Started
                   </button>
                   <button
                     onClick={() => setView('about')}
@@ -350,7 +350,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                 <div className="flex items-center justify-center lg:justify-start space-x-8 text-sm text-gray-300">
                   <div className="flex items-center"><span className="w-2 h-2 bg-teal rounded-full mr-2"></span>50k+ Created</div>
                   <div className="flex items-center"><span className="w-2 h-2 bg-sage rounded-full mr-2"></span>95% Success</div>
-                  <div className="flex items-center"><span className="w-2 h-2 bg-coral rounded-full mr-2"></span>500 FCFA</div>
+                  <div className="flex items-center"><span className="w-2 h-2 bg-coral rounded-full mr-2"></span>300 FCFA</div>
                 </div>
               </div>
 
@@ -532,47 +532,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-20">
-              {/* Single */}
-              <div className="bg-white/5 rounded-2xl p-8 border border-white/10 hover-lift reveal">
+            <div className="flex justify-center mb-20">
+              {/* Single Plan */}
+              <div className="bg-white/5 rounded-2xl p-8 border border-white/10 hover-lift reveal max-w-md w-full relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-teal text-white text-xs font-bold px-3 py-1 rounded-bl-lg">BEST VALUE</div>
                 <div className="text-center">
-                  <h3 className="text-2xl font-semibold mb-4">Single Download</h3>
-                  <div className="text-5xl font-bold mb-2 landing-gradient-text">500 FCFA</div>
-                  <ul className="space-y-4 text-left my-8 text-gray-300 text-sm">
-                    {['1 Resume/CV', 'All Templates', 'AI Generation', 'PDF Export'].map(f => (
-                      <li key={f} className="flex items-center"><span className="text-teal mr-2">✓</span>{f}</li>
-                    ))}
-                  </ul>
-                  <button onClick={onStart} className="w-full bg-teal hover:bg-teal/80 text-white py-3 rounded-lg font-semibold">Get Started</button>
-                </div>
-              </div>
+                  <h3 className="text-2xl font-semibold mb-4">Pay Per Download</h3>
+                  <div className="text-5xl font-bold mb-2 landing-gradient-text">300 FCFA</div>
+                  <p className="text-gray-400 text-sm mb-6">No subscriptions. Pay only when you're ready.</p>
 
-              {/* Pro */}
-              <div className="bg-white/10 rounded-2xl p-8 border-2 border-teal relative hover-lift reveal transform scale-105 shadow-2xl shadow-teal/10">
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-teal text-white px-4 py-1 rounded-full text-sm font-bold">Most Popular</div>
-                <div className="text-center">
-                  <h3 className="text-2xl font-semibold mb-4">Professional Pack</h3>
-                  <div className="text-5xl font-bold mb-2 landing-gradient-text">1,500 FCFA</div>
                   <ul className="space-y-4 text-left my-8 text-gray-300 text-sm">
-                    {['5 Documents', 'All Templates', 'Priority Support', '30-day Access'].map(f => (
+                    {['Professional Resume/CV', 'Unlimited Edits', 'All Premium Templates', 'AI Content Generation', 'Instant PDF Download'].map(f => (
                       <li key={f} className="flex items-center"><span className="text-teal mr-2">✓</span>{f}</li>
                     ))}
                   </ul>
-                  <button onClick={onStart} className="w-full bg-coral hover:bg-coral/80 text-white py-3 rounded-lg font-semibold">Choose Plan</button>
-                </div>
-              </div>
-
-              {/* Enterprise */}
-              <div className="bg-white/5 rounded-2xl p-8 border border-white/10 hover-lift reveal">
-                <div className="text-center">
-                  <h3 className="text-2xl font-semibold mb-4">Enterprise</h3>
-                  <div className="text-5xl font-bold mb-2 text-white">Custom</div>
-                  <ul className="space-y-4 text-left my-8 text-gray-300 text-sm">
-                    {['Unlimited Docs', 'Custom Templates', 'API Access', 'Dedicated Support'].map(f => (
-                      <li key={f} className="flex items-center"><span className="text-teal mr-2">✓</span>{f}</li>
-                    ))}
-                  </ul>
-                  <button onClick={() => setView('contact')} className="w-full border border-teal text-teal hover:bg-teal hover:text-white py-3 rounded-lg font-semibold">Contact Sales</button>
+                  <button onClick={onStart} className="w-full bg-teal hover:bg-teal/80 text-white py-4 rounded-lg font-bold text-lg shadow-lg shadow-teal/20 transition-all hover:scale-105">Get Started</button>
                 </div>
               </div>
             </div>
@@ -583,9 +557,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
               <p className="text-gray-400 text-center mb-8">Everything you need to know about our pricing and services</p>
               <div className="grid gap-6">
                 {[
-                  { q: "How does the 500 FCFA pricing work?", a: "You pay 500 FCFA for each resume, CV, or cover letter you download. There are no subscription fees, no hidden costs, and no automatic renewals. You only pay when you're satisfied with your document and ready to download." },
+                  { q: "How does the 300 FCFA pricing work?", a: "You pay 300 FCFA for each resume, CV, or cover letter you download. There are no subscription fees, no hidden costs, and no automatic renewals. You only pay when you're satisfied with your document and ready to download." },
                   { q: "What payment methods do you accept?", a: "We accept mobile money payments (MTN Mobile Money, Orange Money), credit/debit cards, and PayPal. All payments are processed securely through our trusted payment partners." },
-                  { q: "Can I edit my resume after downloading?", a: "Yes! You can continue editing your resume in our builder even after downloading. However, each new download will require a separate payment of 500 FCFA." },
+                  { q: "Can I edit my resume after downloading?", a: "Yes! You can continue editing your resume in our builder even after downloading. However, each new download will require a separate payment of 300 FCFA." },
                   { q: "Do you offer refunds?", a: "Yes, we offer a 100% satisfaction guarantee. If you're not happy with the quality of your resume, contact us within 7 days of purchase for a full refund." },
                   { q: "Are the templates ATS-friendly?", a: "Absolutely! All our templates are designed to be compatible with Applicant Tracking Systems (ATS). They use standard fonts, proper formatting, and avoid elements that could confuse ATS software." },
                   { q: "Can I use ResumeAI Builder on my phone?", a: "Yes! ResumeAI Builder is fully responsive and works great on mobile devices, tablets, and desktop computers. You can create and edit your resume anywhere, anytime." }
@@ -599,50 +573,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
             </div>
 
             {/* Plan Comparison Table */}
-            <div className="max-w-6xl mx-auto mb-20 reveal">
-              <h2 className="text-3xl font-bold mb-10 text-center">Plan Comparison</h2>
-              <p className="text-gray-400 text-center mb-8">Compare features across all our pricing plans</p>
-              <div className="overflow-x-auto bg-white/5 rounded-2xl border border-white/10">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-white/10 text-gray-400 text-sm uppercase">
-                      <th className="p-4">Features</th>
-                      <th className="p-4 text-teal">Single Download</th>
-                      <th className="p-4 text-coral">Professional Pack</th>
-                      <th className="p-4 text-white">Enterprise</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-gray-300">
-                    {[
-                      ["Documents Included", "1", "5", "Unlimited"],
-                      ["All Templates", "✓", "✓", "✓ + Custom"],
-                      ["AI Content Generation", "✓", "✓", "✓ + Advanced"],
-                      ["PDF Export", "✓", "✓", "✓"],
-                      ["Support Level", "Email", "Priority", "Dedicated"],
-                      ["Access Period", "1 Day", "30 Days", "Unlimited"],
-                      ["API Access", "-", "-", "✓"]
-                    ].map((row, i) => (
-                      <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                        <td className="p-4 font-medium">{row[0]}</td>
-                        <td className="p-4">{row[1]}</td>
-                        <td className="p-4">{row[2]}</td>
-                        <td className="p-4">{row[3]}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
 
             {/* CTA */}
             <div className="text-center max-w-3xl mx-auto bg-gradient-to-br from-teal/20 to-navy/50 p-12 rounded-3xl border border-teal/30 reveal">
               <h2 className="text-3xl font-bold mb-4">Ready to Create Your Professional Resume?</h2>
               <p className="text-gray-300 mb-8">Join thousands of professionals who've transformed their careers with our AI-powered resume builder.</p>
               <div className="flex justify-center gap-4 flex-col sm:flex-row">
-                <button onClick={onStart} className="bg-coral hover:bg-coral/80 text-white px-8 py-3 rounded-lg font-bold shadow-lg">Start with Single Download</button>
-                <button onClick={onStart} className="border border-white hover:bg-white hover:text-navy text-white px-8 py-3 rounded-lg font-bold">Try Free Demo</button>
+                <button onClick={onStart} className="bg-coral hover:bg-coral/80 text-white px-8 py-3 rounded-lg font-bold shadow-lg">Get Started</button>
               </div>
-              <p className="text-xs text-gray-400 mt-6">500 FCFA per download • No subscription • 100% satisfaction guarantee</p>
+              <p className="text-xs text-gray-400 mt-6">300 FCFA per download • No subscription • 100% satisfaction guarantee</p>
             </div>
           </div>
         </section>
@@ -686,18 +625,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
               <h2 className="text-3xl font-display font-bold mb-4">Meet the Team</h2>
               <p className="text-gray-400">Passionate experts dedicated to your success.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="flex justify-center">
               {[
-                { name: "Nounga Joseph Youmi", role: "Founder & CEO", init: "NJ", color: "bg-teal" },
-                { name: "Moussa Koné", role: "CTO", init: "MK", color: "bg-coral" },
-                { name: "Tabi Jeff", role: "Design Expert", init: "TJ", color: "bg-sage" }
+                { name: "Nounga Joseph", role: "Founder & Lead Developer", init: "NJ", color: "bg-teal" }
               ].map((member, i) => (
-                <div key={i} className="bg-white/5 p-8 rounded-2xl border border-white/10 text-center hover-lift reveal">
-                  <div className={`w-24 h-24 ${member.color}/20 rounded-full flex items-center justify-center mx-auto mb-6`}>
-                    <span className={`text-3xl font-bold text-${member.color.replace('bg-', '')}`}>{member.init}</span>
+                <div key={i} className="bg-white/5 p-8 rounded-2xl border border-white/10 text-center hover-lift reveal max-w-sm w-full">
+                  <div className={`w-32 h-32 ${member.color}/20 rounded-full flex items-center justify-center mx-auto mb-6`}>
+                    <span className={`text-4xl font-bold text-${member.color.replace('bg-', '')}`}>{member.init}</span>
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">{member.name}</h3>
-                  <p className={`text-sm font-medium mb-4 ${member.color.replace('bg-', 'text-')}`}>{member.role}</p>
+                  <h3 className="text-2xl font-semibold mb-2">{member.name}</h3>
+                  <p className={`text-base font-medium mb-4 ${member.color.replace('bg-', 'text-')}`}>{member.role}</p>
+                  <p className="text-gray-400 text-sm">Passionate about building tools that empower professionals to achieve their career goals.</p>
                 </div>
               ))}
             </div>

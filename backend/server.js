@@ -1,3 +1,5 @@
+require("dotenv").config();
+console.log("DEBUG DATABASE_URL:", process.env.DATABASE_URL);
 
 const express = require('express');
 const cors = require('cors');
@@ -6,7 +8,6 @@ const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
 
 // Import database functions
 const { initializeDatabase, getTransaction, updateTransaction } = require('./db');

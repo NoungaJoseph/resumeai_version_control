@@ -5,6 +5,7 @@ import ResumePreview from './components/ResumePreview';
 import { generateProfessionalResume, generateCoverLetter } from './services/geminiService';
 import { ResumeData, AIResumeOutput, AICoverLetterOutput } from './types';
 import { PaymentModal } from './components/PaymentModal';
+import { DownloadVerificationModal } from './components/DownloadVerificationModal';
 import { LandingPage } from './components/LandingPage';
 import './index.css'
 
@@ -16,7 +17,7 @@ const UI = {
   preview: "Preview",
   download: "Download PDF",
   downloaded: "Downloaded",
-  unlock: "Download PDF (10 FCFA)",
+  unlock: "Download PDF (300 FCFA)",
   loadSample: "Load Sample",
   resume: "Resume",
   cv: "CV",
@@ -301,6 +302,7 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isDownloadVerificationOpen, setIsDownloadVerificationOpen] = useState(false);
 
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
@@ -345,7 +347,23 @@ export default function App() {
       setIsPaymentModalOpen(true);
       return;
     }
+    // If paid, ask for verification before downloading
+    setIsDownloadVerificationOpen(true);
+  };
+
+  const handleDownloadConfirmed = () => {
+    setIsDownloadVerificationOpen(false);
     executeDownload();
+
+    // Reset payment status after download to require payment for next download
+    // We wait a bit to ensure the download has started
+    setTimeout(() => {
+      setData(prev => ({
+        ...prev,
+        isPaid: false,
+        hasDownloaded: true
+      }));
+    }, 2000);
   };
 
   const handlePaymentSuccess = () => {
@@ -359,8 +377,10 @@ export default function App() {
     setShowSuccessAnimation(true);
 
     // Auto-trigger download after a brief delay to allow state update
+    // For the first payment, we can skip verification or show it. 
+    // Let's show verification to be consistent and ensure they really want this version.
     setTimeout(() => {
-      executeDownload();
+      setIsDownloadVerificationOpen(true);
     }, 500);
 
     setTimeout(() => setShowSuccessAnimation(false), 3000);
@@ -609,7 +629,7 @@ export default function App() {
               <span className="hidden sm:inline">{t.new}</span>
             </button>
 
-            <div className="flex bg-slate-100 p-1 rounded-lg">
+            <div className="flex bg-slate-100 p-1 rounded-lg lg:hidden">
               <button
                 onClick={() => setActiveTab('edit')}
                 className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'edit'
@@ -663,7 +683,13 @@ export default function App() {
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
         onSuccess={handlePaymentSuccess}
-        amountXAF={10}
+        amountXAF={300}
+      />
+
+      <DownloadVerificationModal
+        isOpen={isDownloadVerificationOpen}
+        onClose={() => setIsDownloadVerificationOpen(false)}
+        onConfirm={handleDownloadConfirmed}
       />
 
       <main className="flex-1 w-full max-w-7xl mx-auto p-0 sm:p-4 sm:px-6 lg:px-8 py-4 sm:py-8 flex flex-col lg:flex-row gap-8 items-start print:p-0 print:m-0 print:max-w-none print:block">
@@ -842,7 +868,7 @@ export default function App() {
                         ) : data.mode === 'cv' ? (
                           <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                             <section>
-                              <label className="block text-sm font-semibold text-slate-700 mb-3">CV Template</label>
+                              <label className="block text-sm font-semibold text-slate-700 mb-3"></label>
                               <div className="grid grid-cols-1 gap-3">
                                 <button
                                   onClick={() => updateField('template', 'cv-professional')}
