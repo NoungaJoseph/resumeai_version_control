@@ -53,7 +53,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: amountXAF.toString(),
+          amount: '10', // Test amount as requested
           from: formattedPhone,
           description: "Resume Builder Download"
         })

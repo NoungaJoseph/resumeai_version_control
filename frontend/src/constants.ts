@@ -37,7 +37,23 @@ export const UI = {
     addVolunteering: "Add Volunteering",
     addSchool: "Add School",
     addProject: "Add Project",
-    addEntry: "Add Entry"
+    addEntry: "Add Entry",
+    fullName: "Full Name",
+    email: "Email",
+    phone: "Phone",
+    location: "Location",
+    linkedin: "LinkedIn",
+    website: "Website",
+    company: "Company",
+    role: "Role",
+    description: "Description",
+    school: "School",
+    degree: "Degree",
+    skills: "Skills",
+    skillsPlaceholder: "List your skills...",
+    addExperience: "Add Experience",
+    addEducation: "Add Education",
+    certifications: "Certifications"
 };
 
 export const ROLES = [
