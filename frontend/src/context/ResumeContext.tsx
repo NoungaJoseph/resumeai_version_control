@@ -6,8 +6,8 @@ interface ResumeContextType {
     setData: React.Dispatch<React.SetStateAction<ResumeData>>;
     aiOutput: AIResumeOutput | null;
     setAiOutput: React.Dispatch<React.SetStateAction<AIResumeOutput | null>>;
-    coverLetter: AICoverLetterOutput | null;
-    setCoverLetter: React.Dispatch<React.SetStateAction<AICoverLetterOutput | null>>;
+    aiCoverLetter: AICoverLetterOutput | null;
+    setAiCoverLetter: React.Dispatch<React.SetStateAction<AICoverLetterOutput | null>>;
     isPaid: boolean;
     setIsPaid: React.Dispatch<React.SetStateAction<boolean>>;
     hasDownloaded: boolean;
@@ -26,23 +26,29 @@ export const useResume = () => {
 };
 
 const initialResumeData: ResumeData = {
+    language: 'en',
+    mode: 'resume',
+    targetRole: '',
     fullName: '',
     email: '',
     phone: '',
     location: '',
     website: '',
     linkedin: '',
-    github: '',
+
     summary: '',
     experience: [],
+    internships: [],
+    volunteering: [],
     education: [],
-    skills: [],
+    skills: '',
     projects: [],
-    certifications: [],
-    languages: [],
-    hobbies: [],
+    certifications: '',
+    languages: '',
+    achievements: '',
+    publications: '',
     template: 'modern',
-    color: '#3b82f6',
+    themeColor: '#3b82f6',
     isPaid: false,
     hasDownloaded: false
 };
@@ -55,7 +61,7 @@ export const ResumeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     });
 
     const [aiOutput, setAiOutput] = useState<AIResumeOutput | null>(null);
-    const [coverLetter, setCoverLetter] = useState<AICoverLetterOutput | null>(null);
+    const [aiCoverLetter, setAiCoverLetter] = useState<AICoverLetterOutput | null>(null);
 
     // We can keep these separate or part of data, but for context API let's expose them directly
     // Actually data.isPaid and data.hasDownloaded are part of ResumeData in the types, 
@@ -94,8 +100,8 @@ export const ResumeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setData,
             aiOutput,
             setAiOutput,
-            coverLetter,
-            setCoverLetter,
+            aiCoverLetter,
+            setAiCoverLetter,
             isPaid: data.isPaid,
             setIsPaid,
             hasDownloaded: data.hasDownloaded || false,

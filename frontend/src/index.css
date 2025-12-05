@@ -215,3 +215,12 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Input Field Styles */
+.input-field {
+  @apply w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+}
+
+.input-field.enhanced {
+  @apply hover:border-slate-400 shadow-sm;
+}

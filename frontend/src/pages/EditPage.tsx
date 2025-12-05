@@ -89,6 +89,9 @@ export const EditPage: React.FC = () => {
                 return;
             }
 
+            // Passport photo reminder
+            alert("Please ensure this is a passport-style photo (face clearly visible, plain background).");
+
             const reader = new FileReader();
             reader.onloadend = () => {
                 updateField('photo', reader.result as string);
@@ -188,34 +191,16 @@ export const EditPage: React.FC = () => {
                     </div>
 
                     {/* Center: Mode Switcher */}
-                    <div className="flex items-center bg-slate-100 p-1 rounded-xl mx-2 sm:mx-8">
-                        <button
-                            onClick={() => switchMode('resume')}
-                            className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'resume'
-                                ? 'bg-white text-slate-900 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                                }`}
+                    <div className="flex items-center mx-2 sm:mx-8">
+                        <select
+                            value={data.mode}
+                            onChange={(e) => switchMode(e.target.value as any)}
+                            className="px-4 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-slate-100 transition-all cursor-pointer"
                         >
-                            {t.resume}
-                        </button>
-                        <button
-                            onClick={() => switchMode('cv')}
-                            className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'cv'
-                                ? 'bg-white text-slate-900 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                                }`}
-                        >
-                            {t.cv}
-                        </button>
-                        <button
-                            onClick={() => switchMode('cover-letter')}
-                            className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all whitespace-nowrap ${data.mode === 'cover-letter'
-                                ? 'bg-white text-slate-900 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                                }`}
-                        >
-                            {t.coverLetter}
-                        </button>
+                            <option value="resume">{t.resume}</option>
+                            <option value="cv">{t.cv}</option>
+                            <option value="cover-letter">{t.coverLetter}</option>
+                        </select>
                     </div>
 
                     {/* Right: Actions */}
@@ -477,9 +462,17 @@ export const EditPage: React.FC = () => {
                                                     )}
                                                 </div>
                                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 rounded-xl">
-                                                    {data.photo && (
-                                                        <button onClick={removePhoto} className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600">
+                                                    {data.photo ? (
+                                                        <button onClick={removePhoto} className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600" title="Remove Photo">
                                                             <TrashIcon className="w-4 h-4" />
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => fileInputRef.current?.click()}
+                                                            className="p-2 bg-white/20 backdrop-blur-sm text-white rounded-full hover:bg-white/30 transition-colors"
+                                                            title="Upload Passport Photo"
+                                                        >
+                                                            <PlusIcon className="w-6 h-6" />
                                                         </button>
                                                     )}
                                                     <input
@@ -490,7 +483,7 @@ export const EditPage: React.FC = () => {
                                                         className="hidden"
                                                     />
                                                 </div>
-                                                <p className="text-[11px] text-slate-500 mt-2">Recommended for CVs. Square crop works best.</p>
+                                                <p className="text-[11px] text-slate-500 mt-2">Passport photo only. Square crop works best.</p>
                                             </div>
                                         </div>
 
