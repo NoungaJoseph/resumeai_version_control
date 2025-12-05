@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 // @ts-ignore
 import anime from 'animejs/lib/anime.es.js';
 import * as echarts from 'echarts';
@@ -7,13 +8,11 @@ import { Splide, SplideSlide } from '@splidejs/react-splide';
 import '@splidejs/react-splide/css';
 import { Logo } from './Logo';
 
-interface LandingPageProps {
-  onStart: () => void;
-}
-
 type ViewState = 'home' | 'pricing' | 'about' | 'contact' | 'privacy' | 'terms';
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
+export const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
+  const onStart = () => navigate('/edit');
   const [view, setView] = useState<ViewState>('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 

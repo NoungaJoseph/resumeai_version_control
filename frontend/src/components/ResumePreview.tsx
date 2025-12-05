@@ -61,7 +61,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
         backgroundColor: '#ffffff'
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -500,7 +500,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               {/* Right Column (Sidebar) */}
               <div className="flex-1 bg-slate-50 p-10 pl-6 border-l border-slate-100 print:bg-slate-50 print:p-8 print:pl-8 print:border-l-0 print:border-t print:w-full">
                 {dataToRender.skills.length > 0 && (
-                  <section className="mb-8 break-inside-avoid">
+                  <section className="mb-8">
                     <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.competencies}</h2>
                     <div className="flex flex-wrap gap-2">
                       {dataToRender.skills.map((skill, idx) => (
@@ -513,7 +513,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 )}
 
                 {dataToRender.languages && dataToRender.languages.length > 0 && (
-                  <section className="mb-8 break-inside-avoid">
+                  <section className="mb-8">
                     <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.languages}</h2>
                     <ul className="space-y-2">
                       {dataToRender.languages.map((langItem, idx) => (
@@ -527,7 +527,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 )}
 
                 {raw.education.length > 0 && (
-                  <section className="mb-8 break-inside-avoid">
+                  <section className="mb-8">
                     <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.education}</h2>
                     <div className="space-y-5">
                       {raw.education.map((edu, idx) => (
@@ -542,7 +542,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 )}
 
                 {dataToRender.certifications && dataToRender.certifications.length > 0 && (
-                  <section className="mb-8 break-inside-avoid">
+                  <section className="mb-8">
                     <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.certifications}</h2>
                     <ul className="space-y-3">
                       {dataToRender.certifications.map((cert, idx) => (
@@ -555,7 +555,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 )}
 
                 {dataToRender.publications && dataToRender.publications.length > 0 && (
-                  <section className="mb-8 break-inside-avoid">
+                  <section className="mb-8">
                     <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.publications}</h2>
                     <ul className="space-y-3">
                       {dataToRender.publications.map((pub, idx) => (
@@ -568,7 +568,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 )}
 
                 {dataToRender.achievements && dataToRender.achievements.length > 0 && (
-                  <section className="break-inside-avoid">
+                  <section>
                     <h2 className="text-xs font-bold uppercase tracking-widest mb-4 text-slate-900 border-b border-slate-200 pb-2">{t.awards}</h2>
                     <ul className="space-y-3">
                       {dataToRender.achievements.map((ach, idx) => (
@@ -689,11 +689,11 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
             {/* Publications */}
             {dataToRender.publications && dataToRender.publications.length > 0 && (
-              <section className="mb-8 break-inside-avoid">
+              <section className="mb-8">
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.publications}</h2>
                 <ul className="list-decimal list-outside ml-5 space-y-3">
                   {dataToRender.publications.map((pub, idx) => (
-                    <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1 text-justify">{pub}</li>
+                    <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1 text-justify break-inside-avoid">{pub}</li>
                   ))}
                 </ul>
               </section>
@@ -748,20 +748,20 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
             {/* Certifications */}
             {dataToRender.certifications && dataToRender.certifications.length > 0 && (
-              <section className="mb-8 break-inside-avoid">
+              <section className="mb-8">
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.certifications}</h2>
                 <ul className="list-disc list-outside ml-5 space-y-1.5">
                   {dataToRender.certifications.map((cert, idx) => (
-                    <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1">{cert}</li>
+                    <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1 break-inside-avoid">{cert}</li>
                   ))}
                 </ul>
               </section>
             )}
 
             {/* Languages & Skills */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 break-inside-avoid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               {dataToRender.languages && dataToRender.languages.length > 0 && (
-                <section>
+                <section className="break-inside-avoid">
                   <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.languages}</h2>
                   <ul className="list-none space-y-1">
                     {dataToRender.languages.map((langItem, idx) => (
@@ -772,7 +772,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               )}
 
               {dataToRender.skills.length > 0 && (
-                <section>
+                <section className="break-inside-avoid">
                   <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.skills}</h2>
                   <p className="text-sm leading-relaxed text-slate-800">
                     {dataToRender.skills.join(' • ')}
@@ -783,11 +783,11 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
             {/* Achievements */}
             {dataToRender.achievements && dataToRender.achievements.length > 0 && (
-              <section className="mt-8 break-inside-avoid">
+              <section className="mt-8">
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.awards}</h2>
                 <ul className="list-disc list-outside ml-5 space-y-1">
                   {dataToRender.achievements.map((ach, idx) => (
-                    <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1">{ach}</li>
+                    <li key={idx} className="text-sm leading-relaxed text-slate-800 pl-1 break-inside-avoid">{ach}</li>
                   ))}
                 </ul>
               </section>

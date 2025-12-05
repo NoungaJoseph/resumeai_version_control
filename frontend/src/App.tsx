@@ -7,25 +7,13 @@ import { PreviewPage } from './pages/PreviewPage';
 import './index.css';
 
 function AppContent() {
-  const [showLanding, setShowLanding] = useState(() => {
-    return localStorage.getItem('hasStarted') !== 'true';
-  });
-
-  const handleStartApp = () => {
-    setShowLanding(false);
-    localStorage.setItem('hasStarted', 'true');
-  };
-
-  if (showLanding) {
-    return <LandingPage onStart={handleStartApp} />;
-  }
-
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Navigate to="/edit" replace />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/edit" element={<EditPage />} />
         <Route path="/preview" element={<PreviewPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
