@@ -34,7 +34,13 @@ export interface ProjectItem {
 export interface ResumeData {
   language: 'en' | 'fr'; // New field for bilingual support
   mode: 'resume' | 'cv' | 'cover-letter';
-  template: 'classic' | 'sidebar' | 'modern' | 'minimalist' | 'cv-academic' | 'cv-executive' | 'cv-corporate' | 'cv-professional' | 'cv-classic';
+  template:
+  // Resume Templates
+  | 'modern' | 'classic' | 'sidebar' | 'minimalist'
+  | 'resume-ats' | 'resume-executive' | 'resume-creative' | 'resume-technical' | 'resume-entry'
+  // CV Templates  
+  | 'cv-academic' | 'cv-executive' | 'cv-corporate' | 'cv-professional' | 'cv-classic'
+  | 'cv-research' | 'cv-medical' | 'cv-faculty' | 'cv-scientific' | 'cv-international';
   themeColor: string; // Hex code
   fullName: string;
   email: string;

@@ -39,26 +39,84 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Removed scaling state as per user request for multi-page support
-
-
-
   const downloadAsPDF = async () => {
     if (!containerRef.current) return;
 
-    const originalTransform = containerRef.current.style.transform;
-    const originalScale = containerRef.current.style.scale;
-
-    // Reset for capture
-    containerRef.current.style.transform = 'none';
-    containerRef.current.style.scale = '1';
-
     try {
+      // Temporarily hide scrollbars and ensure full content is visible
+      const originalOverflow = containerRef.current.style.overflow;
+      const originalHeight = containerRef.current.style.height;
+      containerRef.current.style.overflow = 'visible';
+      containerRef.current.style.height = 'auto';
+
+      // Wait for layout to settle
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Get all elements that should not be split
+      const protectedElements = containerRef.current.querySelectorAll('.page-break-avoid');
+      const containerRect = containerRef.current.getBoundingClientRect();
+
+      // A4 dimensions at scale 3 (what html2canvas will use)
+      const SCALE = 3;
+      const A4_HEIGHT_MM = 297;
+      const A4_WIDTH_MM = 210;
+      const MM_TO_PX = 3.7795275591; // at 96 DPI
+      const PAGE_HEIGHT_PX = A4_HEIGHT_MM * MM_TO_PX * SCALE;
+
+      const adjustments: Array<{ element: HTMLElement; originalMargin: string; originalPadding: string }> = [];
+
+      // Process each protected element
+      protectedElements.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        const rect = htmlEl.getBoundingClientRect();
+
+        // Calculate position relative to container (will be scaled)
+        const relativeTop = (rect.top - containerRect.top) * SCALE;
+        const elementHeight = rect.height * SCALE;
+        const relativeBottom = relativeTop + elementHeight;
+
+        // Determine pages
+        const startPage = Math.floor(relativeTop / PAGE_HEIGHT_PX);
+        const endPage = Math.floor(relativeBottom / PAGE_HEIGHT_PX);
+
+        // If element would be split across pages
+        if (startPage !== endPage && elementHeight < PAGE_HEIGHT_PX * 0.8) {
+          // Calculate space needed to push to next page
+          const nextPageStart = (startPage + 1) * PAGE_HEIGHT_PX;
+          const pushDown = (nextPageStart - relativeTop) / SCALE; // Convert back to unscaled
+
+          const originalMargin = htmlEl.style.marginTop;
+          const originalPadding = htmlEl.style.paddingTop;
+
+          // Add padding instead of margin for better visual results
+          const currentPadding = parseInt(getComputedStyle(htmlEl).paddingTop) || 0;
+          htmlEl.style.paddingTop = `${currentPadding + pushDown}px`;
+
+          adjustments.push({ element: htmlEl, originalMargin, originalPadding });
+        }
+      });
+
+      // Wait again for adjustments to apply
+      await new Promise(resolve => setTimeout(resolve, 150));
+
+      // Generate canvas at high resolution
       const canvas = await html2canvas(containerRef.current, {
-        scale: 6, // Increased from 2 to 6 for 3x larger font sizes
+        scale: SCALE,
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        windowHeight: containerRef.current.scrollHeight,
+        height: containerRef.current.scrollHeight
+      });
+
+      // Restore original styles
+      containerRef.current.style.overflow = originalOverflow;
+      containerRef.current.style.height = originalHeight;
+
+      // Clean up adjustments
+      adjustments.forEach(({ element, originalMargin, originalPadding }) => {
+        element.style.marginTop = originalMargin;
+        element.style.paddingTop = originalPadding;
       });
 
       const imgData = canvas.toDataURL('image/png');
@@ -68,32 +126,39 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
         format: 'a4'
       });
 
-      const imgWidth = 210; // A4 width in mm
+      const pageWidth = 210; // A4 width in mm
       const pageHeight = 297; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      const margin = 0; // No margins - content should have its own
+      const contentWidth = pageWidth - (2 * margin);
 
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      const imgWidth = contentWidth;
+      const imgHeight = (canvas.height * contentWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = margin;
+
+      // Add first page
+      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
 
+      // Add additional pages if needed
       while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
+        position = -(pageHeight - heightLeft) - margin;
         pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
       }
 
-      // Sanitize filename
-      const safeName = (raw.fullName || 'resume').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      pdf.save(`${safeName}.pdf`);
+      // Use user's full name for filename, sanitized
+      const safeName = (raw.fullName || 'resume')
+        .replace(/[^a-z0-9\\s]/gi, '')
+        .replace(/\\s+/g, '_')
+        .toLowerCase();
 
+      pdf.save(`${safeName}.pdf`);
     } catch (err) {
       console.error("PDF generation failed", err);
       alert("Failed to generate PDF. Please try again.");
-    } finally {
-      containerRef.current.style.transform = originalTransform;
-      containerRef.current.style.scale = originalScale;
     }
   };
 
@@ -400,7 +465,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                     </h2>
                     <div className="space-y-8">
                       {dataToRender.experience.map((exp, idx) => (
-                        <div key={idx} className="break-inside-avoid">
+                        <div key={idx} className="page-break-avoid">
                           <div className="flex justify-between items-baseline mb-1">
                             <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{exp.dates}</span>
@@ -427,7 +492,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                     </h2>
                     <div className="space-y-8">
                       {dataToRender.internships.map((exp, idx) => (
-                        <div key={idx} className="break-inside-avoid">
+                        <div key={idx} className="page-break-avoid">
                           <div className="flex justify-between items-baseline mb-1">
                             <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{exp.dates}</span>
@@ -454,7 +519,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                     </h2>
                     <div className="space-y-6">
                       {dataToRender.projects.map((proj, idx) => (
-                        <div key={idx} className="break-inside-avoid">
+                        <div key={idx} className="page-break-avoid">
                           <h3 className="font-bold text-slate-900 text-sm flex justify-between items-center mb-1">
                             <span>{proj.name}</span>
                             <span className="text-slate-400 font-medium text-xs">{proj.dates}</span>
@@ -479,7 +544,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                     </h2>
                     <div className="space-y-6">
                       {dataToRender.volunteering.map((vol, idx) => (
-                        <div key={idx} className="break-inside-avoid">
+                        <div key={idx} className="page-break-avoid">
                           <div className="flex justify-between items-baseline mb-1">
                             <h3 className="font-bold text-slate-900 text-sm">{vol.role}</h3>
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{vol.dates}</span>
@@ -629,7 +694,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.education}</h2>
                 <div className="space-y-4">
                   {raw.education.map((edu, idx) => (
-                    <div key={idx} className="break-inside-avoid">
+                    <div key={idx} className="page-break-avoid">
                       <div className="flex justify-between items-baseline">
                         <h3 className="font-bold text-slate-900 text-base">{edu.school}</h3>
                         <span className="text-sm text-slate-700 font-medium">{edu.dates}</span>
@@ -647,7 +712,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.academicExp}</h2>
                 <div className="space-y-6">
                   {dataToRender.experience.map((exp, idx) => (
-                    <div key={idx} className="break-inside-avoid">
+                    <div key={idx} className="page-break-avoid">
                       <div className="flex justify-between items-baseline mb-1">
                         <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
                         <span className="text-sm text-slate-700 font-medium">{exp.dates}</span>
@@ -670,7 +735,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.internships}</h2>
                 <div className="space-y-6">
                   {dataToRender.internships.map((exp, idx) => (
-                    <div key={idx} className="break-inside-avoid">
+                    <div key={idx} className="page-break-avoid">
                       <div className="flex justify-between items-baseline mb-1">
                         <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
                         <span className="text-sm text-slate-700 font-medium">{exp.dates}</span>
@@ -705,7 +770,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.research}</h2>
                 <div className="space-y-5">
                   {dataToRender.projects.map((proj, idx) => (
-                    <div key={idx} className="break-inside-avoid">
+                    <div key={idx} className="page-break-avoid">
                       <div className="flex justify-between items-baseline mb-1">
                         <h3 className="font-bold text-slate-900">
                           {proj.name} {proj.link && <a href={proj.link} target="_blank" rel="noreferrer" className="text-xs font-normal underline ml-1 text-slate-600">[Link]</a>}
@@ -729,7 +794,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.volunteering}</h2>
                 <div className="space-y-6">
                   {dataToRender.volunteering.map((exp, idx) => (
-                    <div key={idx} className="break-inside-avoid">
+                    <div key={idx} className="page-break-avoid">
                       <div className="flex justify-between items-baseline mb-1">
                         <h3 className="font-bold text-slate-900 text-base">{exp.role}</h3>
                         <span className="text-sm text-slate-700 font-medium">{exp.dates}</span>
@@ -761,7 +826,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
             {/* Languages & Skills */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               {dataToRender.languages && dataToRender.languages.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.languages}</h2>
                   <ul className="list-none space-y-1">
                     {dataToRender.languages.map((langItem, idx) => (
@@ -772,7 +837,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               )}
 
               {dataToRender.skills.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <h2 className="text-sm font-bold uppercase border-b border-slate-300 mb-4 pb-1 tracking-widest">{t.skills}</h2>
                   <p className="text-sm leading-relaxed text-slate-800">
                     {dataToRender.skills.join(' • ')}
@@ -860,7 +925,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Professional Summary */}
               {dataToRender.summary && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <div className="bg-slate-100 text-center py-2 mb-3 rounded">
                     <h2 className="text-sm font-bold uppercase tracking-widest text-slate-700">
                       Professional Summary
@@ -874,7 +939,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Core Competencies */}
               {dataToRender.skills.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
                     <h2 className="text-sm font-bold uppercase tracking-widest">
                       Core Competencies
@@ -901,7 +966,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
                   <div className="space-y-4">
                     {dataToRender.experience.map((exp, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="flex justify-between items-start mb-1.5">
                           <div className="flex-1">
                             <h3 className="text-base font-bold text-slate-900">{exp.role}</h3>
@@ -942,7 +1007,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
                   <div className="space-y-4">
                     {dataToRender.internships.map((int, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="flex justify-between items-start mb-1.5">
                           <div className="flex-1">
                             <h3 className="text-base font-bold text-slate-900">{int.role}</h3>
@@ -970,7 +1035,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Education */}
               {raw.education.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
                     <h2 className="text-sm font-bold uppercase tracking-widest">
                       Educational Qualifications
@@ -989,7 +1054,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Certifications */}
               {dataToRender.certifications && dataToRender.certifications.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
                     <h2 className="text-sm font-bold uppercase tracking-widest">
                       Certifications
@@ -1007,7 +1072,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               )}
 
               {/* Tools & Tech */}
-              <section className="break-inside-avoid">
+              <section className="page-break-avoid">
                 <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
                   <h2 className="text-sm font-bold uppercase tracking-widest">
                     Tools and Tech
@@ -1020,7 +1085,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Extracurricular Activities */}
               {dataToRender.achievements && dataToRender.achievements.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <div className="bg-slate-800 text-white text-center py-2 mb-3 rounded">
                     <h2 className="text-sm font-bold uppercase tracking-widest">
                       Extracurricular Activities
@@ -1038,7 +1103,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Languages */}
               {dataToRender.languages && dataToRender.languages.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <p className="text-xs text-slate-700 px-2">
                     <span className="font-bold uppercase">Languages: </span>
                     {dataToRender.languages.join(' | ')}
@@ -1047,7 +1112,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               )}
 
               {/* References */}
-              <section className="break-inside-avoid">
+              <section className="page-break-avoid">
                 <p className="text-sm text-slate-700 font-bold uppercase px-2">
                   References:
                 </p>
@@ -1119,7 +1184,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Core Competencies */}
               {dataToRender.skills.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <div className="bg-slate-700 text-white text-center py-2 mb-3 rounded">
                     <h2 className="text-sm font-bold uppercase tracking-widest">
                       Core Competencies
@@ -1146,7 +1211,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
                   <div className="space-y-4">
                     {dataToRender.experience.map((exp, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="flex justify-between items-start mb-1">
                           <div className="flex-1">
                             <h3 className="text-base font-bold text-slate-900">{exp.role}</h3>
@@ -1178,7 +1243,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Education */}
               {raw.education.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <div className="bg-slate-700 text-white text-center py-2 mb-3 rounded">
                     <h2 className="text-sm font-bold uppercase tracking-widest">
                       Educational Qualifications
@@ -1197,7 +1262,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Certifications */}
               {dataToRender.certifications && dataToRender.certifications.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <div className="bg-slate-700 text-white text-center py-2 mb-3 rounded">
                     <h2 className="text-sm font-bold uppercase tracking-widest">
                       Certifications
@@ -1214,7 +1279,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               )}
 
               {/* References */}
-              <section className="break-inside-avoid">
+              <section className="page-break-avoid">
                 <p className="text-sm text-slate-700 font-bold uppercase px-2">References:</p>
                 <p className="text-xs text-slate-600 italic px-2">Available upon Request.</p>
               </section>
@@ -1278,7 +1343,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </h2>
                   <div className="space-y-4">
                     {dataToRender.experience.map((exp, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="mb-1">
                           <h3 className="text-base font-bold text-slate-900">Your Designation</h3>
                           <p className="text-sm text-slate-700 font-bold flex items-center gap-2 mt-0.5">
@@ -1303,7 +1368,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Education */}
               {raw.education.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
                     Educational Qualifications
                   </h2>
@@ -1320,7 +1385,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Core Competencies */}
               {dataToRender.skills.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
                     Core Competencies
                   </h2>
@@ -1331,7 +1396,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               )}
 
               {/* Tools & Tech */}
-              <section className="break-inside-avoid">
+              <section className="page-break-avoid">
                 <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
                   Tools & Tech
                 </h2>
@@ -1341,7 +1406,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               </section>
 
               {/* References */}
-              <section className="break-inside-avoid">
+              <section className="page-break-avoid">
                 <h2 className="text-base font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-3">
                   References
                 </h2>
@@ -1407,7 +1472,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </h2>
                   <div className="space-y-4">
                     {dataToRender.experience.map((exp, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="mb-1">
                           <h3 className="text-base font-bold text-slate-900">{exp.role}</h3>
                           <p className="text-sm text-slate-700 font-bold flex items-center gap-2 mt-0.5">
@@ -1432,7 +1497,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Education */}
               {raw.education.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <h2 className="text-base font-bold uppercase tracking-wider text-blue-600 border-b-2 border-blue-600 pb-1 mb-3">
                     Educational Qualifications
                   </h2>
@@ -1449,7 +1514,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
               {/* Core Competencies */}
               {dataToRender.skills.length > 0 && (
-                <section className="break-inside-avoid">
+                <section className="page-break-avoid">
                   <h2 className="text-base font-bold uppercase tracking-wider text-blue-600 border-b-2 border-blue-600 pb-1 mb-3">
                     Core Competencies
                   </h2>
@@ -1460,7 +1525,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               )}
 
               {/* Tools & Tech */}
-              <section className="break-inside-avoid">
+              <section className="page-break-avoid">
                 <h2 className="text-base font-bold uppercase tracking-wider text-blue-600 border-b-2 border-blue-600 pb-1 mb-3">
                   Tools & Tech
                 </h2>
@@ -1505,7 +1570,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 <SectionTitle title={t.experience} />
                 <div className="space-y-5">
                   {dataToRender.experience.map((exp, idx) => (
-                    <div key={idx} className="break-inside-avoid">
+                    <div key={idx} className="page-break-avoid">
                       <div className="flex justify-between items-baseline mb-1">
                         <h3 className="font-bold text-slate-900">{exp.role}</h3>
                         <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{exp.dates}</span>
@@ -1527,7 +1592,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 <SectionTitle title={t.internships} />
                 <div className="space-y-5">
                   {dataToRender.internships.map((exp, idx) => (
-                    <div key={idx} className="break-inside-avoid">
+                    <div key={idx} className="page-break-avoid">
                       <div className="flex justify-between items-baseline mb-1">
                         <h3 className="font-bold text-slate-900">{exp.role}</h3>
                         <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{exp.dates}</span>
@@ -1549,7 +1614,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 <SectionTitle title={t.projects} />
                 <div className="space-y-4">
                   {dataToRender.projects.map((proj, idx) => (
-                    <div key={idx} className="break-inside-avoid">
+                    <div key={idx} className="page-break-avoid">
                       <div className="flex justify-between items-baseline mb-1">
                         <h3 className="font-bold text-slate-900">
                           {proj.name} {proj.link && <a href={proj.link} target="_blank" rel="noreferrer" className="text-xs font-normal underline ml-1" style={{ color: themeColor }}>Link ↗</a>}
@@ -1572,7 +1637,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 <SectionTitle title={t.volunteering} />
                 <div className="space-y-4">
                   {dataToRender.volunteering.map((vol, idx) => (
-                    <div key={idx} className="break-inside-avoid">
+                    <div key={idx} className="page-break-avoid">
                       <div className="flex justify-between items-baseline mb-1">
                         <h3 className="font-bold text-slate-900">{vol.role}</h3>
                         <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{vol.dates}</span>
@@ -1618,7 +1683,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
             )}
 
             {dataToRender.skills.length > 0 && (
-              <section className="break-inside-avoid">
+              <section className="page-break-avoid">
                 <SectionTitle title={t.skills} />
                 <div className="flex flex-wrap gap-2">
                   {dataToRender.skills.map((skill, idx) => (
@@ -1659,7 +1724,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                     <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.experience}</h2>
                     <div className="space-y-6">
                       {dataToRender.experience.map((exp, idx) => (
-                        <div key={idx} className="break-inside-avoid">
+                        <div key={idx} className="page-break-avoid">
                           <h3 className="font-bold text-slate-900">{exp.role}</h3>
                           <div className="text-slate-600 font-medium text-sm mb-2">{exp.company}</div>
                           <ul className="list-disc list-outside ml-4 space-y-1">
@@ -1678,7 +1743,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                     <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.internships}</h2>
                     <div className="space-y-6">
                       {dataToRender.internships.map((exp, idx) => (
-                        <div key={idx} className="break-inside-avoid">
+                        <div key={idx} className="page-break-avoid">
                           <h3 className="font-bold text-slate-900">{exp.role}</h3>
                           <div className="text-slate-600 font-medium text-sm mb-2">{exp.company}</div>
                           <ul className="list-disc list-outside ml-4 space-y-1">
@@ -1697,7 +1762,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                     <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.projects}</h2>
                     <div className="space-y-5">
                       {dataToRender.projects.map((proj, idx) => (
-                        <div key={idx} className="break-inside-avoid">
+                        <div key={idx} className="page-break-avoid">
                           <h3 className="font-bold text-slate-900 flex items-center gap-2">
                             {proj.name}
                             {proj.link && <a href={proj.link} target="_blank" rel="noreferrer" className="text-xs underline opacity-70 hover:opacity-100">Link</a>}
@@ -1718,7 +1783,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                     <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.volunteering}</h2>
                     <div className="space-y-5">
                       {dataToRender.volunteering.map((vol, idx) => (
-                        <div key={idx} className="break-inside-avoid">
+                        <div key={idx} className="page-break-avoid">
                           <h3 className="font-bold text-slate-900">{vol.role}</h3>
                           <div className="text-slate-600 font-medium text-sm mb-2">{vol.company}</div>
                           <ul className="list-disc list-outside ml-4 mt-2 space-y-1">
@@ -1764,7 +1829,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                 )}
 
                 {dataToRender.achievements && dataToRender.achievements.length > 0 && (
-                  <div className="break-inside-avoid">
+                  <div className="page-break-avoid">
                     <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: themeColor }}>{t.awards}</h2>
                     <ul className="list-disc list-outside ml-4 space-y-2">
                       {dataToRender.achievements.map((ach, idx) => (
@@ -1819,7 +1884,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
                   <div className="space-y-6">
                     {dataToRender.experience.map((exp, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="flex justify-between items-end mb-2">
                           <div>
                             <h3 className="font-bold text-slate-900 text-lg">{exp.role}</h3>
@@ -1848,7 +1913,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
                   <div className="space-y-6">
                     {dataToRender.internships.map((exp, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="flex justify-between items-end mb-2">
                           <div>
                             <h3 className="font-bold text-slate-900 text-lg">{exp.role}</h3>
@@ -1877,7 +1942,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
                   <div className="grid grid-cols-1 gap-6">
                     {dataToRender.projects.map((proj, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="flex justify-between items-baseline mb-1">
                           <h3 className="font-bold text-slate-900">{proj.name}</h3>
                           <span className="text-sm text-slate-500">{proj.dates}</span>
@@ -1904,7 +1969,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
                   <div className="grid grid-cols-1 gap-6">
                     {dataToRender.volunteering.map((vol, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="flex justify-between items-baseline mb-1">
                           <h3 className="font-bold text-slate-900">{vol.role}</h3>
                           <span className="text-sm text-slate-500">{vol.dates}</span>
@@ -1951,7 +2016,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               </div>
 
               {dataToRender.achievements && dataToRender.achievements.length > 0 && (
-                <div className="break-inside-avoid">
+                <div className="page-break-avoid">
                   <h2 className="text-center text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 pb-1 border-b border-slate-100">{t.awards}</h2>
                   <ul className="list-none text-center space-y-1">
                     {dataToRender.achievements.map((ach, idx) => (
@@ -1976,7 +2041,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
             ref={containerRef}
             className="w-[210mm] min-h-[297mm] bg-white text-slate-800 relative mx-auto box-border flex flex-col print:w-full print:min-h-0 print:h-auto print:overflow-visible print:print-color-adjust-exact"
           >
-            <div className="break-inside-avoid">
+            <div className="page-break-avoid">
               <div className="p-8 pb-4">
                 <h1 className="text-4xl font-bold text-slate-900 mb-2" style={{ color: themeColor }}>{raw.fullName || "Your Name"}</h1>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
@@ -2009,7 +2074,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
                   <div className="flex-1 p-6 border-b border-slate-100 space-y-6">
                     {dataToRender.experience.map((exp, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="font-bold text-slate-900">{exp.company}</div>
                         <div className="flex justify-between items-baseline text-sm mb-2">
                           <span className="text-slate-700 italic">{exp.role}</span>
@@ -2033,7 +2098,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
                   <div className="flex-1 p-6 border-b border-slate-100 space-y-6">
                     {dataToRender.internships.map((exp, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="font-bold text-slate-900">{exp.company}</div>
                         <div className="flex justify-between items-baseline text-sm mb-2">
                           <span className="text-slate-700 italic">{exp.role}</span>
@@ -2074,7 +2139,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
                   <div className="flex-1 p-6 border-b border-slate-100 space-y-4">
                     {dataToRender.projects.map((proj, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="flex justify-between items-baseline">
                           <div className="font-bold text-slate-900 flex items-center gap-2">
                             {proj.name}
@@ -2099,7 +2164,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
                   </div>
                   <div className="flex-1 p-6 border-b border-slate-100 space-y-4">
                     {dataToRender.volunteering.map((vol, idx) => (
-                      <div key={idx} className="break-inside-avoid">
+                      <div key={idx} className="page-break-avoid">
                         <div className="flex justify-between items-baseline">
                           <div className="font-bold text-slate-900 flex items-center gap-2">
                             {vol.role}
@@ -2162,6 +2227,814 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
       </div>
     );
   }
+
+  // === NEW RESUME TEMPLATE: ATS-OPTIMIZED ===
+  // Simple, single-column, zero graphics for maximum ATS compatibility
+  if (raw.template === 'resume-ats') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[25mm] text-slate-900 mx-auto box-border print:w-full print:min-h-0 print:p-[20mm]">
+
+            {/* Header - Simple Text Only */}
+            <header className="mb-8 page-break-avoid">
+              <h1 className="text-2xl font-bold uppercase tracking-wide mb-2 text-slate-900">
+                {raw.fullName || "YOUR NAME"}
+              </h1>
+              <div className="text-sm text-slate-700 space-y-1">
+                {raw.email && <div>{raw.email}</div>}
+                {raw.phone && <div>{raw.phone}</div>}
+                {raw.location && <div>{raw.location}</div>}
+                {raw.linkedin && <div>{raw.linkedin}</div>}
+              </div>
+            </header>
+
+            {/* Professional Summary */}
+            {dataToRender.summary && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase mb-3 text-slate-900 border-b-2 border-slate-900 pb-1">
+                  PROFESSIONAL SUMMARY
+                </h2>
+                <p className="text-sm leading-relaxed text-slate-800">{dataToRender.summary}</p>
+              </section>
+            )}
+
+            {/* Work Experience */}
+            {dataToRender.experience.length > 0 && (
+              <section className="mb-6">
+                <h2 className="text-base font-bold uppercase mb-3 text-slate-900 border-b-2 border-slate-900 pb-1">
+                  WORK EXPERIENCE
+                </h2>
+                <div className="space-y-4">
+                  {dataToRender.experience.map((exp, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <div className="flex justify-between mb-1">
+                        <h3 className="font-bold text-slate-900">{exp.role}</h3>
+                        <span className="text-sm text-slate-600">{exp.dates}</span>
+                      </div>
+                      <div className="font-semibold text-slate-700 mb-2">{exp.company}</div>
+                      <ul className="list-disc list-outside ml-5 space-y-1">
+                        {exp.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx} className="text-sm text-slate-700 leading-relaxed">{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Education */}
+            {raw.education.length > 0 && (
+              <section className="mb-6">
+                <h2 className="text-base font-bold uppercase mb-3 text-slate-900 border-b-2 border-slate-900 pb-1">
+                  EDUCATION
+                </h2>
+                <div className="space-y-3">
+                  {raw.education.map((edu, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <div className="flex justify-between">
+                        <h3 className="font-bold text-slate-900">{edu.degree}</h3>
+                        <span className="text-sm text-slate-600">{edu.dates}</span>
+                      </div>
+                      <div className="text-slate-700">{edu.school}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Skills */}
+            {dataToRender.skills.length > 0 && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase mb-3 text-slate-900 border-b-2 border-slate-900 pb-1">
+                  SKILLS
+                </h2>
+                <p className="text-sm text-slate-700 leading-relaxed">
+                  {dataToRender.skills.join(' • ')}
+                </p>
+              </section>
+            )}
+
+            {/* Certifications */}
+            {dataToRender.certifications && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase mb-3 text-slate-900 border-b-2 border-slate-900 pb-1">
+                  CERTIFICATIONS
+                </h2>
+                <p className="text-sm text-slate-700">{dataToRender.certifications}</p>
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // === RESUME TEMPLATE: EXECUTIVE ===
+  if (raw.template === 'resume-executive') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 mx-auto box-border print:w-full print:min-h-0">
+            <header className="mb-8 pb-6 border-b-4 page-break-avoid" style={{ borderColor: themeColor }}>
+              <h1 className="text-3xl font-bold mb-2" style={{ color: themeColor }}>{raw.fullName || "EXECUTIVE NAME"}</h1>
+              <h2 className="text-xl text-slate-600 mb-4">{raw.targetRole || "Senior Leadership Position"}</h2>
+              <div className="flex flex-wrap gap-x-4 text-sm text-slate-700">
+                {raw.email && <span>{raw.email}</span>}
+                {raw.phone && <span>• {raw.phone}</span>}
+                {raw.location && <span>• {raw.location}</span>}
+                {raw.linkedin && <span>• {raw.linkedin}</span>}
+              </div>
+            </header>
+
+            {dataToRender.summary && (
+              <section className="mb-6 page-break-avoid">
+                <h3 className="text-lg font-bold mb-3 uppercase tracking-wide" style={{ color: themeColor }}>Executive Profile</h3>
+                <p className="text-sm leading-relaxed text-slate-800">{dataToRender.summary}</p>
+              </section>
+            )}
+
+            {dataToRender.experience.length > 0 && (
+              <section className="mb-6">
+                <h3 className="text-lg font-bold mb-4 uppercase tracking-wide" style={{ color: themeColor }}>Professional Experience</h3>
+                <div className="space-y-5">
+                  {dataToRender.experience.map((exp, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="text-base font-bold text-slate-900">{exp.role}</h4>
+                          <p className="text-slate-700 font-semibold">{exp.company}</p>
+                        </div>
+                        <span className="text-sm text-slate-600 whitespace-nowrap">{exp.dates}</span>
+                      </div>
+                      <ul className="list-disc list-outside ml-5 space-y-1.5">
+                        {exp.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx} className="text-sm text-slate-700 leading-relaxed">{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {raw.education.length > 0 && (
+              <section className="mb-6 page-break-avoid">
+                <h3 className="text-lg font-bold mb-3 uppercase tracking-wide" style={{ color: themeColor }}>Education</h3>
+                <div className="space-y-2">
+                  {raw.education.map((edu, idx) => (
+                    <div key={idx}>
+                      <div className="flex justify-between">
+                        <span className="font-bold text-slate-900">{edu.degree}</span>
+                        <span className="text-sm text-slate-600">{edu.dates}</span>
+                      </div>
+                      <p className="text-slate-700">{edu.school}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // === RESUME TEMPLATE: CREATIVE ===
+  if (raw.template === 'resume-creative') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white mx-auto box-border print:w-full print:min-h-0">
+            <div className="grid grid-cols-3 gap-0">
+              <div className="col-span-1 p-8 text-white" style={{ backgroundColor: themeColor }}>
+                {raw.photo && (
+                  <div className="mb-6 page-break-avoid">
+                    <img src={raw.photo} alt="Profile" className="w-32 h-32 rounded-full object-cover border-4 border-white mx-auto" />
+                  </div>
+                )}
+                <div className="mb-6 page-break-avoid">
+                  <h2 className="text-xs font-bold uppercase tracking-widest mb-3">Contact</h2>
+                  <div className="text-xs space-y-2 text-white/90">
+                    {raw.email && <div>{raw.email}</div>}
+                    {raw.phone && <div>{raw.phone}</div>}
+                    {raw.location && <div>{raw.location}</div>}
+                  </div>
+                </div>
+                {dataToRender.skills.length > 0 && (
+                  <div className="mb-6 page-break-avoid">
+                    <h2 className="text-xs font-bold uppercase tracking-widest mb-3">Skills</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {dataToRender.skills.map((skill, idx) => (
+                        <span key={idx} className="text-xs bg-white/20 px-2 py-1 rounded">{skill}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="col-span-2 p-8">
+                <header className="mb-6 page-break-avoid">
+                  <h1 className="text-3xl font-bold mb-1" style={{ color: themeColor }}>{raw.fullName || "Your Name"}</h1>
+                  <p className="text-lg text-slate-600">{raw.targetRole}</p>
+                </header>
+
+                {dataToRender.summary && (
+                  <section className="mb-6 page-break-avoid">
+                    <h3 className="text-sm font-bold uppercase tracking-wide mb-2" style={{ color: themeColor }}>About</h3>
+                    <p className="text-sm leading-relaxed text-slate-700">{dataToRender.summary}</p>
+                  </section>
+                )}
+
+                {dataToRender.experience.length > 0 && (
+                  <section className="mb-6">
+                    <h3 className="text-sm font-bold uppercase tracking-wide mb-3" style={{ color: themeColor }}>Experience</h3>
+                    <div className="space-y-4">
+                      {dataToRender.experience.map((exp, idx) => (
+                        <div key={idx} className="page-break-avoid">
+                          <div className="flex justify-between mb-1">
+                            <h4 className="font-bold text-slate-900">{exp.role}</h4>
+                            <span className="text-xs text-slate-600">{exp.dates}</span>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-700 mb-2">{exp.company}</p>
+                          <ul className="list-disc list-outside ml-4 space-y-1">
+                            {exp.bullets.slice(0, 3).map((bullet, bIdx) => (
+                              <li key={bIdx} className="text-xs text-slate-600 leading-relaxed">{bullet}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {raw.education.length > 0 && (
+                  <section className="page-break-avoid">
+                    <h3 className="text-sm font-bold uppercase tracking-wide mb-2" style={{ color: themeColor }}>Education</h3>
+                    <div className="space-y-2">
+                      {raw.education.map((edu, idx) => (
+                        <div key={idx}>
+                          <p className="font-bold text-sm text-slate-900">{edu.degree}</p>
+                          <p className="text-xs text-slate-700">{edu.school} • {edu.dates}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // === RESUME TEMPLATE: TECHNICAL ===
+  if (raw.template === 'resume-technical') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 mx-auto box-border print:w-full print:min-h-0">
+            <header className="mb-6 page-break-avoid">
+              <h1 className="text-2xl font-mono font-bold mb-1">{raw.fullName || "DEVELOPER_NAME"}</h1>
+              <p className="text-slate-600 font-mono text-sm mb-3">{raw.targetRole}</p>
+              <div className="flex flex-wrap gap-x-3 text-xs font-mono text-slate-700">
+                {raw.email && <span>{raw.email}</span>}
+                {raw.location && <span>| {raw.location}</span>}
+                {raw.linkedin && <span>| {raw.linkedin}</span>}
+              </div>
+            </header>
+
+            {dataToRender.skills.length > 0 && (
+              <section className="mb-6 page-break-avoid">
+                <h3 className="text-sm font-mono font-bold mb-2 pb-1 border-b-2 border-slate-900">TECHNICAL_STACK</h3>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {dataToRender.skills.map((skill, idx) => (
+                    <div key={idx} className="font-mono text-slate-700">• {skill}</div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {dataToRender.experience.length > 0 && (
+              <section className="mb-6">
+                <h3 className="text-sm font-mono font-bold mb-3 pb-1 border-b-2 border-slate-900">EXPERIENCE</h3>
+                <div className="space-y-4">
+                  {dataToRender.experience.map((exp, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <div className="flex justify-between mb-1">
+                        <h4 className="font-mono font-bold text-sm">{exp.role}</h4>
+                        <span className="font-mono text-xs text-slate-600">{exp.dates}</span>
+                      </div>
+                      <p className="font-mono text-xs text-slate-700 mb-2">{exp.company}</p>
+                      <ul className="list-none space-y-1">
+                        {exp.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx} className="text-xs text-slate-700 leading-relaxed">→ {bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {dataToRender.projects.length > 0 && (
+              <section className="mb-6">
+                <h3 className="text-sm font-mono font-bold mb-3 pb-1 border-b-2 border-slate-900">PROJECTS</h3>
+                <div className="space-y-3">
+                  {dataToRender.projects.map((proj, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <h4 className="font-mono font-bold text-sm">{proj.name}</h4>
+                      <ul className="list-none space-y-0.5 mt-1">
+                        {proj.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx} className="text-xs text-slate-700">→ {bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {raw.education.length > 0 && (
+              <section className="page-break-avoid">
+                <h3 className="text-sm font-mono font-bold mb-2 pb-1 border-b-2 border-slate-900">EDUCATION</h3>
+                {raw.education.map((edu, idx) => (
+                  <div key={idx} className="font-mono text-sm">
+                    <span className="font-bold">{edu.degree}</span> | {edu.school} | {edu.dates}
+                  </div>
+                ))}
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // === RESUME TEMPLATE: ENTRY-LEVEL ===
+  if (raw.template === 'resume-entry') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[22mm] text-slate-900 mx-auto box-border print:w-full print:min-h-0">
+            <header className="text-center mb-6 page-break-avoid">
+              <h1 className="text-2xl font-bold mb-2">{raw.fullName || "Your Name"}</h1>
+              <p className="text-slate-600 mb-3">{raw.targetRole}</p>
+              <div className="text-sm text-slate-700 flex flex-wrap justify-center gap-x-3">
+                {raw.email && <span>{raw.email}</span>}
+                {raw.phone && <span>• {raw.phone}</span>}
+                {raw.linkedin && <span>• {raw.linkedin}</span>}
+              </div>
+            </header>
+
+            {raw.education.length > 0 && (
+              <section className="mb-6 page-break-avoid">
+                <h3 className="text-base font-bold mb-3 pb-2 border-b-2" style={{ borderColor: themeColor, color: themeColor }}>Education</h3>
+                {raw.education.map((edu, idx) => (
+                  <div key={idx} className="mb-3">
+                    <div className="flex justify-between">
+                      <h4 className="font-bold">{edu.degree}</h4>
+                      <span className="text-sm text-slate-600">{edu.dates}</span>
+                    </div>
+                    <p className="text-slate-700">{edu.school}</p>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {dataToRender.skills.length > 0 && (
+              <section className="mb-6 page-break-avoid">
+                <h3 className="text-base font-bold mb-3 pb-2 border-b-2" style={{ borderColor: themeColor, color: themeColor }}>Skills</h3>
+                <p className="text-sm text-slate-700 leading-relaxed">{dataToRender.skills.join(' • ')}</p>
+              </section>
+            )}
+
+            {dataToRender.projects.length > 0 && (
+              <section className="mb-6">
+                <h3 className="text-base font-bold mb-3 pb-2 border-b-2" style={{ borderColor: themeColor, color: themeColor }}>Projects</h3>
+                <div className="space-y-3">
+                  {dataToRender.projects.map((proj, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <h4 className="font-bold text-slate-900">{proj.name}</h4>
+                      <ul className="list-disc list-outside ml-5 space-y-1 mt-1">
+                        {proj.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx} className="text-sm text-slate-700">{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {dataToRender.experience.length > 0 && (
+              <section className="mb-6">
+                <h3 className="text-base font-bold mb-3 pb-2 border-b-2" style={{ borderColor: themeColor, color: themeColor }}>Experience</h3>
+                <div className="space-y-3">
+                  {dataToRender.experience.map((exp, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <div className="flex justify-between">
+                        <h4 className="font-bold">{exp.role}</h4>
+                        <span className="text-sm text-slate-600">{exp.dates}</span>
+                      </div>
+                      <p className="text-slate-700 font-semibold mb-1">{exp.company}</p>
+                      <ul className="list-disc list-outside ml-5 space-y-0.5">
+                        {exp.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx} className="text-sm text-slate-700">{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // === CV TEMPLATE: RESEARCH-FOCUSED ===
+  if (raw.template === 'cv-research') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 font-serif mx-auto box-border print:w-full print:min-h-0">
+            <header className="mb-8 text-center border-b-2 border-slate-900 pb-6 page-break-avoid">
+              <h1 className="text-3xl font-bold uppercase mb-2">{raw.fullName || "RESEARCHER NAME"}</h1>
+              <p className="text-slate-700 mb-3">{raw.targetRole}</p>
+              <div className="text-sm text-slate-600 flex flex-wrap justify-center gap-x-3">
+                {raw.email && <span>{raw.email}</span>}
+                {raw.location && <span>• {raw.location}</span>}
+                {raw.website && <span>• {raw.website.replace(/^https?:\/\//, '')}</span>}
+              </div>
+            </header>
+
+            {dataToRender.summary && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase tracking-wide border-b border-slate-300 pb-1 mb-3">Research Interests</h2>
+                <p className="text-sm leading-relaxed">{dataToRender.summary}</p>
+              </section>
+            )}
+
+            {raw.education.length > 0 && (
+              <section className="mb-6">
+                <h2 className="text-base font-bold uppercase tracking-wide border-b border-slate-300 pb-1 mb-3">Education</h2>
+                <div className="space-y-3">
+                  {raw.education.map((edu, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <div className="flex justify-between">
+                        <span className="font-bold">{edu.degree}</span>
+                        <span className="text-sm text-slate-600">{edu.dates}</span>
+                      </div>
+                      <p className="text-slate-700">{edu.school}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {dataToRender.experience.length > 0 && (
+              <section className="mb-6">
+                <h2 className="text-base font-bold uppercase tracking-wide border-b border-slate-300 pb-1 mb-3">Research Experience</h2>
+                <div className="space-y-4">
+                  {dataToRender.experience.map((exp, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <div className="flex justify-between mb-1">
+                        <span className="font-bold">{exp.role}</span>
+                        <span className="text-sm text-slate-600">{exp.dates}</span>
+                      </div>
+                      <p className="italic text-slate-700 mb-2">{exp.company}</p>
+                      <ul className="list-disc list-outside ml-5 space-y-1">
+                        {exp.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx} className="text-sm text-slate-700">{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {dataToRender.publications && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase tracking-wide border-b border-slate-300 pb-1 mb-3">Selected Publications</h2>
+                <p className="text-sm text-slate-700">{dataToRender.publications}</p>
+              </section>
+            )}
+
+            {dataToRender.skills.length > 0 && (
+              <section className="page-break-avoid">
+                <h2 className="text-base font-bold uppercase tracking-wide border-b border-slate-300 pb-1 mb-3">Technical Skills</h2>
+                <p className="text-sm text-slate-700">{dataToRender.skills.join(' • ')}</p>
+              </section>
+            )}
+          </div>
+        </div>
+      </div >
+    );
+  }
+
+  // === CV TEMPLATE: MEDICAL ===
+  if (raw.template === 'cv-medical') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 mx-auto box-border print:w-full print:min-h-0">
+            <header className="mb-6 pb-4 border-b-2 page-break-avoid" style={{ borderColor: themeColor }}>
+              <h1 className="text-2xl font-bold mb-1">{raw.fullName || "PHYSICIAN NAME"}</h1>
+              <p className="text-lg text-slate-600 mb-3">{raw.targetRole}</p>
+              <div className="text-sm text-slate-700 grid grid-cols-2 gap-2">
+                {raw.email && <div>Email: {raw.email}</div>}
+                {raw.phone && <div>Phone: {raw.phone}</div>}
+                {raw.location && <div>Location: {raw.location}</div>}
+                {raw.linkedin && <div>LinkedIn: {raw.linkedin}</div>}
+              </div>
+            </header>
+
+            {dataToRender.certifications && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase tracking-wide mb-3" style={{ color: themeColor }}>Certifications & Licenses</h2>
+                <p className="text-sm text-slate-700 leading-relaxed">{dataToRender.certifications}</p>
+              </section>
+            )}
+
+            {raw.education.length > 0 && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase tracking-wide mb-3" style={{ color: themeColor }}>Medical Education</h2>
+                <div className="space-y-3">
+                  {raw.education.map((edu, idx) => (
+                    <div key={idx}>
+                      <div className="flex justify-between">
+                        <span className="font-bold">{edu.degree}</span>
+                        <span className="text-sm text-slate-600">{edu.dates}</span>
+                      </div>
+                      <p className="text-slate-700">{edu.school}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {dataToRender.experience.length > 0 && (
+              <section className="mb-6">
+                <h2 className="text-base font-bold uppercase tracking-wide mb-3" style={{ color: themeColor }}>Clinical Experience</h2>
+                <div className="space-y-4">
+                  {dataToRender.experience.map((exp, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <div className="flex justify-between">
+                        <span className="font-bold">{exp.role}</span>
+                        <span className="text-sm text-slate-600">{exp.dates}</span>
+                      </div>
+                      <p className="text-slate-700 font-semibold mb-2">{exp.company}</p>
+                      <ul className="list-disc list-outside ml-5 space-y-1">
+                        {exp.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx} className="text-sm text-slate-700">{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {dataToRender.skills.length > 0 && (
+              <section className="page-break-avoid">
+                <h2 className="text-base font-bold uppercase tracking-wide mb-3" style={{ color: themeColor }}>Specializations & Skills</h2>
+                <p className="text-sm text-slate-700">{dataToRender.skills.join(' • ')}</p>
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // === CV TEMPLATE: FACULTY ===
+  if (raw.template === 'cv-faculty') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 font-serif mx-auto box-border print:w-full print:min-h-0">
+            <header className="mb-6 text-center border-b-2 border-slate-900 pb-4 page-break-avoid">
+              <h1 className="text-2xl font-bold uppercase mb-1">{raw.fullName || "FACULTY NAME"}</h1>
+              <p className="text-slate-700">{raw.targetRole}</p>
+              <div className="text-sm text-slate-600 mt-2">
+                {raw.email} • {raw.location} • {raw.website && raw.website.replace(/^https?:\/\//, '')}
+              </div>
+            </header>
+
+            {dataToRender.summary && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase border-b border-slate-300 pb-1 mb-3">Teaching Philosophy</h2>
+                <p className="text-sm leading-relaxed">{dataToRender.summary}</p>
+              </section>
+            )}
+
+            {raw.education.length > 0 && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase border-b border-slate-300 pb-1 mb-3">Academic Qualifications</h2>
+                <div className="space-y-2">
+                  {raw.education.map((edu, idx) => (
+                    <div key={idx}>
+                      <span className="font-bold">{edu.degree}</span>, {edu.school}, {edu.dates}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {dataToRender.experience.length > 0 && (
+              <section className="mb-6">
+                <h2 className="text-base font-bold uppercase border-b border-slate-300 pb-1 mb-3">Teaching Experience</h2>
+                <div className="space-y-3">
+                  {dataToRender.experience.map((exp, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <div className="flex justify-between mb-1">
+                        <span className="font-bold">{exp.role}</span>
+                        <span className="text-sm text-slate-600">{exp.dates}</span>
+                      </div>
+                      <p className="italic mb-2">{exp.company}</p>
+                      <ul className="list-disc list-outside ml-5 space-y-0.5 text-sm">
+                        {exp.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx}>{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {dataToRender.publications && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase border-b border-slate-300 pb-1 mb-3">Publications</h2>
+                <p className="text-sm">{dataToRender.publications}</p>
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // === CV TEMPLATE: SCIENTIFIC ===
+  if (raw.template === 'cv-scientific') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 mx-auto box-border print:w-full print:min-h-0">
+            <header className="mb-6 page-break-avoid">
+              <h1 className="text-2xl font-bold mb-1">{raw.fullName || "SCIENTIST NAME"}</h1>
+              <p className="text-lg text-slate-600 mb-2">{raw.targetRole}</p>
+              <div className="text-sm text-slate-700 flex gap-x-3">
+                {raw.email && <span>{raw.email}</span>}
+                {raw.phone && <span>| {raw.phone}</span>}
+                {raw.location && <span>| {raw.location}</span>}
+              </div>
+            </header>
+
+            {dataToRender.skills.length > 0 && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase border-b-2 border-slate-900 pb-1 mb-3">Technical Expertise</h2>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  {dataToRender.skills.map((skill, idx) => (
+                    <div key={idx}>• {skill}</div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {raw.education.length > 0 && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase border-b-2 border-slate-900 pb-1 mb-3">Education</h2>
+                {raw.education.map((edu, idx) => (
+                  <div key={idx} className="mb-2">
+                    <div className="font-bold">{edu.degree} - {edu.school}</div>
+                    <div className="text-sm text-slate-600">{edu.dates}</div>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {dataToRender.experience.length > 0 && (
+              <section className="mb-6">
+                <h2 className="text-base font-bold uppercase border-b-2 border-slate-900 pb-1 mb-3">Research & Lab Experience</h2>
+                <div className="space-y-4">
+                  {dataToRender.experience.map((exp, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <div className="flex justify-between">
+                        <span className="font-bold">{exp.role}</span>
+                        <span className="text-sm text-slate-600">{exp.dates}</span>
+                      </div>
+                      <p className="text-slate-700 mb-2">{exp.company}</p>
+                      <ul className="list-disc list-outside ml-5 space-y-0.5 text-sm">
+                        {exp.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx}>{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {dataToRender.publications && (
+              <section className="page-break-avoid">
+                <h2 className="text-base font-bold uppercase border-b-2 border-slate-900 pb-1 mb-3">Publications</h2>
+                <p className="text-sm">{dataToRender.publications}</p>
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // === CV TEMPLATE: INTERNATIONAL ===
+  if (raw.template === 'cv-international') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 mx-auto box-border print:w-full print:min-h-0">
+            <header className="mb-6 flex gap-6 page-break-avoid">
+              {raw.photo && (
+                <div className="w-32 h-32 flex-shrink-0">
+                  <img src={raw.photo} alt="Profile" className="w-full h-full object-cover border-2 border-slate-300" />
+                </div>
+              )}
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold mb-2">{raw.fullName || "YOUR NAME"}</h1>
+                <p className="text-slate-600 mb-3">{raw.targetRole}</p>
+                <div className="text-sm text-slate-700 space-y-1">
+                  {raw.email && <div>Email: {raw.email}</div>}
+                  {raw.phone && <div>Phone: {raw.phone}</div>}
+                  {raw.location && <div>Address: {raw.location}</div>}
+                  {raw.linkedin && <div>LinkedIn: {raw.linkedin}</div>}
+                </div>
+              </div>
+            </header>
+
+            {dataToRender.summary && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase tracking-wide bg-slate-100 px-3 py-2 mb-3">Professional Profile</h2>
+                <p className="text-sm leading-relaxed px-3">{dataToRender.summary}</p>
+              </section>
+            )}
+
+            {dataToRender.experience.length > 0 && (
+              <section className="mb-6">
+                <h2 className="text-base font-bold uppercase tracking-wide bg-slate-100 px-3 py-2 mb-3">Work Experience</h2>
+                <div className="space-y-3 px-3">
+                  {dataToRender.experience.map((exp, idx) => (
+                    <div key={idx} className="page-break-avoid">
+                      <div className="flex justify-between mb-1">
+                        <span className="font-bold">{exp.role}</span>
+                        <span className="text-sm text-slate-600">{exp.dates}</span>
+                      </div>
+                      <p className="text-slate-700 font-semibold mb-2">{exp.company}</p>
+                      <ul className="list-disc list-outside ml-5 space-y-0.5 text-sm">
+                        {exp.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx}>{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {raw.education.length > 0 && (
+              <section className="mb-6 page-break-avoid">
+                <h2 className="text-base font-bold uppercase tracking-wide bg-slate-100 px-3 py-2 mb-3">Education</h2>
+                <div className="space-y-2 px-3">
+                  {raw.education.map((edu, idx) => (
+                    <div key={idx}>
+                      <div className="flex justify-between">
+                        <span className="font-bold">{edu.degree}</span>
+                        <span className="text-sm text-slate-600">{edu.dates}</span>
+                      </div>
+                      <p className="text-slate-700">{edu.school}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {dataToRender.skills.length > 0 && (
+              <section className="page-break-avoid">
+                <h2 className="text-base font-bold uppercase tracking-wide bg-slate-100 px-3 py-2 mb-3">Skills & Competencies</h2>
+                <p className="text-sm px-3">{dataToRender.skills.join(' • ')}</p>
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return null;
 });
 

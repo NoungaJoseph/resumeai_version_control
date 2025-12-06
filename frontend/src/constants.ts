@@ -85,3 +85,29 @@ export const COLORS = [
     { name: "Charcoal", hex: "#374151", class: "bg-gray-700" },
     { name: "Burgundy", hex: "#7f1d1d", class: "bg-red-900" },
 ];
+
+export const TEMPLATES = {
+  // Resume Templates
+  'modern': { name: 'Modern', desc: 'Contemporary professional design' },
+  'classic': { name: 'Classic', desc: 'Traditional business format' },
+  'sidebar': { name: 'Sidebar', desc: 'Two-column with photo' },
+  'minimalist': { name: 'Minimalist', desc: 'Clean and simple' },
+  'resume-ats': { name: 'ATS Optimized', desc: 'Applicant tracking system friendly' },
+  'resume-executive': { name: 'Executive', desc: 'Senior-level professional' },
+  'resume-creative': { name: 'Creative', desc: 'Visual design emphasis' },
+  'resume-technical': { name: 'Technical', desc: 'Engineering and IT focused' },
+  'resume-entry': { name: 'Entry Level', desc: 'Graduate and career starter' },
+  
+  // CV Templates
+  'cv-academic': { name: 'Academic CV', desc: 'University standard format' },
+  'cv-executive': { name: 'Executive CV', desc: 'Leadership positions' },
+  'cv-corporate': { name: 'Corporate CV', desc: 'Business professional' },
+  'cv-professional': { name: 'Professional CV', desc: 'Multi-industry standard' },
+  'cv-classic': { name: 'Classic CV', desc: 'Traditional comprehensive' },
+  'cv-research': { name: 'Research CV', desc: 'Publications and grants focus' },
+  'cv-medical': { name: 'Medical CV', desc: 'Healthcare professionals' },
+  'cv-faculty': { name: 'Faculty CV', desc: 'Teaching and service emphasis' },
+  'cv-scientific': { name: 'Scientific CV', desc: 'Lab and technical skills' },
+  'cv-international': { name: 'International CV', desc: 'Global standard with photo' },
+};
+

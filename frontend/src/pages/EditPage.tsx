@@ -374,6 +374,51 @@ export const EditPage: React.FC = () => {
                                                     >
                                                         Executive
                                                     </button>
+                                                    <button
+                                                        onClick={() => updateField('template', 'resume-ats')}
+                                                        className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'resume-ats'
+                                                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                                            : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                            }`}
+                                                    >
+                                                        ATS Optimized
+                                                    </button>
+                                                    <button
+                                                        onClick={() => updateField('template', 'resume-executive')}
+                                                        className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'resume-executive'
+                                                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                                            : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                            }`}
+                                                    >
+                                                        Senior Executive
+                                                    </button>
+                                                    <button
+                                                        onClick={() => updateField('template', 'resume-creative')}
+                                                        className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'resume-creative'
+                                                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                                            : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                            }`}
+                                                    >
+                                                        Creative
+                                                    </button>
+                                                    <button
+                                                        onClick={() => updateField('template', 'resume-technical')}
+                                                        className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'resume-technical'
+                                                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                                            : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                            }`}
+                                                    >
+                                                        Technical/IT
+                                                    </button>
+                                                    <button
+                                                        onClick={() => updateField('template', 'resume-entry')}
+                                                        className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'resume-entry'
+                                                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                                            : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                            }`}
+                                                    >
+                                                        Entry Level
+                                                    </button>
                                                 </>
                                             ) : data.mode === 'cv' ? (
                                                 <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
@@ -406,6 +451,51 @@ export const EditPage: React.FC = () => {
                                                                     }`}
                                                             >
                                                                 Classic (Border)
+                                                            </button>
+                                                            <button
+                                                                onClick={() => updateField('template', 'cv-research')}
+                                                                className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-research'
+                                                                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                                                    : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                Research
+                                                            </button>
+                                                            <button
+                                                                onClick={() => updateField('template', 'cv-medical')}
+                                                                className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-medical'
+                                                                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                                                    : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                Medical
+                                                            </button>
+                                                            <button
+                                                                onClick={() => updateField('template', 'cv-faculty')}
+                                                                className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-faculty'
+                                                                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                                                    : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                Faculty/Prof
+                                                            </button>
+                                                            <button
+                                                                onClick={() => updateField('template', 'cv-scientific')}
+                                                                className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-scientific'
+                                                                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                                                    : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                Scientific
+                                                            </button>
+                                                            <button
+                                                                onClick={() => updateField('template', 'cv-international')}
+                                                                className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-international'
+                                                                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
+                                                                    : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                International
                                                             </button>
                                                         </div>
                                                     </section>

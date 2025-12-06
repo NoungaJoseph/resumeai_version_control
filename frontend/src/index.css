@@ -224,3 +224,8 @@ body {
 .input-field.enhanced {
   @apply hover:border-slate-400 shadow-sm;
 }
+/* Page Break Utilities */
+.page-break-avoid {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
