@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckIcon, DownloadIcon, SparklesIcon } from '../components/Icons';
 import { useResume } from '../context/ResumeContext';
@@ -13,8 +13,41 @@ export const PreviewPage: React.FC = () => {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isDownloadVerificationOpen, setIsDownloadVerificationOpen] = useState(false);
     const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+    const [zoom, setZoom] = useState(1);
+    const [autoFitZoom, setAutoFitZoom] = useState(1);
     const printRef = useRef<any>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const t = UI;
+
+    // Calculate auto-fit zoom based on viewport
+    useEffect(() => {
+        const calculateAutoFit = () => {
+            if (containerRef.current) {
+                const containerWidth = containerRef.current.offsetWidth;
+                const a4Width = 794; // A4 width in pixels at 96 DPI
+                const padding = 40; // Account for padding
+                const calculatedZoom = Math.min((containerWidth - padding) / a4Width, 1.2);
+                setAutoFitZoom(calculatedZoom);
+                setZoom(calculatedZoom);
+            }
+        };
+
+        calculateAutoFit();
+        window.addEventListener('resize', calculateAutoFit);
+        return () => window.removeEventListener('resize', calculateAutoFit);
+    }, []);
+
+    const handleZoomIn = () => {
+        setZoom(prev => Math.min(prev + 0.1, 2.0));
+    };
+
+    const handleZoomOut = () => {
+        setZoom(prev => Math.max(prev - 0.1, 0.3));
+    };
+
+    const handleResetZoom = () => {
+        setZoom(autoFitZoom);
+    };
 
     const handleDownloadClick = () => {
         // Bypass payment for testing/dev
@@ -114,9 +147,52 @@ export const PreviewPage: React.FC = () => {
                 </div>
             </nav>
 
-            <main className="flex-1 w-full overflow-y-auto bg-slate-100/50">
-                <div className="max-w-4xl mx-auto p-8">
-                    <ResumePreview ref={printRef} raw={data} aiContent={aiOutput} aiCoverLetter={aiCoverLetter} />
+            <main ref={containerRef} className="flex-1 w-full overflow-auto bg-slate-100/50">
+                <div className="max-w-full mx-auto p-4 sm:p-8 flex flex-col items-center">
+                    {/* Zoom Controls */}
+                    <div className="mb-4 flex items-center gap-2 bg-white rounded-lg shadow-md px-4 py-2 sticky top-4 z-10">
+                        <button
+                            onClick={handleZoomOut}
+                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+                            disabled={zoom <= 0.3}
+                            title="Zoom Out"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                            </svg>
+                        </button>
+                        <span className="text-sm font-medium text-slate-700 min-w-[50px] text-center">
+                            {Math.round(zoom * 100)}%
+                        </span>
+                        <button
+                            onClick={handleZoomIn}
+                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+                            disabled={zoom >= 2.0}
+                            title="Zoom In"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                        </button>
+                        <button
+                            onClick={handleResetZoom}
+                            className="ml-2 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                            title="Reset to Auto-fit"
+                        >
+                            Fit
+                        </button>
+                    </div>
+
+                    {/* Preview with zoom transform */}
+                    <div
+                        style={{
+                            transform: `scale(${zoom})`,
+                            transformOrigin: 'top center',
+                            transition: 'transform 0.2s ease-out'
+                        }}
+                    >
+                        <ResumePreview ref={printRef} raw={data} aiContent={aiOutput} aiCoverLetter={aiCoverLetter} />
+                    </div>
                 </div>
             </main>
 
