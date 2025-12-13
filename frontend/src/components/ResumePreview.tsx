@@ -58,9 +58,9 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
     const opt = {
       margin: 0,
       filename: `${safeName}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
       pagebreak: { mode: ['css', 'legacy'] }
     };
 
@@ -71,10 +71,16 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
     element.style.height = 'auto';
 
     try {
+      // Force download attempt
       await html2pdf().set(opt).from(element).save();
     } catch (err) {
       console.error("PDF generation failed", err);
-      alert("Failed to generate PDF automatically. Please try the print option.");
+      try {
+        // Fallback
+        await html2pdf().set(opt).from(element).save();
+      } catch (e) {
+        alert("Failed to generate PDF. Please try again.");
+      }
     } finally {
       // Restore styles
       element.style.overflow = originalOverflow;

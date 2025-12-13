@@ -275,7 +275,7 @@ export const EditPage: React.FC = () => {
                     </div>
 
                     <div className="p-6 space-y-8">
-                        {(data.mode === 'cover-letter' || data.mode === 'motivation-letter' || data.mode === 'internship-letter' || data.mode === 'visa-letter') && (
+                        {data.mode === 'cover-letter' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                                 <section>
                                     <label className="block text-sm font-semibold text-slate-700 mb-3">{t.matchingStyle}</label>
