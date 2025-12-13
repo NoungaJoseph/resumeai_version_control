@@ -58,8 +58,15 @@ body {
 }
 
 @keyframes blink-caret {
-  from, to { border-color: transparent; }
-  50% { border-color: #ff6b6b; }
+
+  from,
+  to {
+    border-color: transparent;
+  }
+
+  50% {
+    border-color: #ff6b6b;
+  }
 }
 
 .reveal {
@@ -80,31 +87,40 @@ body {
   0% {
     transform: translate(0px, 0px) scale(1);
   }
+
   33% {
     transform: translate(30px, -50px) scale(1.1);
   }
+
   66% {
     transform: translate(-20px, 20px) scale(0.9);
   }
+
   100% {
     transform: translate(0px, 0px) scale(1);
   }
 }
 
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px);
   }
+
   50% {
     transform: translateY(-20px);
   }
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
     opacity: 1;
   }
+
   50% {
     transform: scale(1.05);
     opacity: 0.8;
@@ -116,6 +132,7 @@ body {
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -127,6 +144,7 @@ body {
     opacity: 0;
     transform: translateX(-30px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -138,6 +156,7 @@ body {
     opacity: 0;
     transform: translateX(30px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -148,6 +167,7 @@ body {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -158,6 +178,7 @@ body {
     opacity: 0;
     transform: scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -168,6 +189,7 @@ body {
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
@@ -224,8 +246,85 @@ body {
 .input-field.enhanced {
   @apply hover:border-slate-400 shadow-sm;
 }
-/* Page Break Utilities */
+
+/* Page Break Utilities & Print Support */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body {
+    background-color: white;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Hide UI elements */
+  nav,
+  button,
+  .no-print,
+  .print-hidden {
+    display: none !important;
+  }
+
+  /* Reset various layout constraints for print */
+  #root,
+  main {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  /* Target the specific preview wrapper */
+  .preview-wrapper-print-reset {
+    transform: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Remove shadows and borders from resume container */
+  .preview-container-shadow {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+}
+
 .page-break-avoid {
   break-inside: avoid;
   page-break-inside: avoid;
+}
+
+.page-break-after-avoid {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+
+.page-break-before {
+  break-before: page;
+  page-break-before: always;
+}
+
+@media print {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  img {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }

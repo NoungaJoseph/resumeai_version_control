@@ -33,14 +33,16 @@ export interface ProjectItem {
 
 export interface ResumeData {
   language: 'en' | 'fr'; // New field for bilingual support
-  mode: 'resume' | 'cv' | 'cover-letter';
+  mode: 'resume' | 'cv' | 'cover-letter' | 'motivation-letter' | 'internship-letter' | 'visa-letter' | 'business-plan' | 'legal-agreement';
   template:
   // Resume Templates
   | 'modern' | 'classic' | 'sidebar' | 'minimalist'
   | 'resume-ats' | 'resume-executive' | 'resume-creative' | 'resume-technical' | 'resume-entry'
   // CV Templates  
   | 'cv-academic' | 'cv-executive' | 'cv-corporate' | 'cv-professional' | 'cv-classic'
-  | 'cv-research' | 'cv-medical' | 'cv-faculty' | 'cv-scientific' | 'cv-international';
+  | 'cv-research' | 'cv-medical' | 'cv-faculty' | 'cv-scientific' | 'cv-international'
+  // Legal Templates
+  | 'legal-lease' | 'legal-partnership' | 'legal-sale';
   themeColor: string; // Hex code
   fullName: string;
   email: string;
@@ -69,6 +71,60 @@ export interface ResumeData {
   companyAddress?: string;
   jobDescription?: string; // The JD to tailor the letter to
   coverLetterBody?: string; // The generated HTML/Text content
+
+  // Motivation Letter Specifics
+  organizationName?: string;
+  positionApplied?: string;
+  motivationText?: string;
+
+  // Internship Specifics
+  schoolName?: string;
+  program?: string; // Field of study
+  educationLevel?: string; // BTS, HND, etc.
+  internshipStartDate?: string;
+  internshipEndDate?: string;
+  supervisorName?: string;
+  expectedOutcomes?: string;
+
+  // Visa Letter Specifics
+  dob?: string;
+  passportNumber?: string;
+  passportIssueDate?: string;
+  passportExpiryDate?: string;
+  nationality?: string;
+  destinationCountry?: string;
+  embassyDetails?: string;
+  travelStartDate?: string;
+  travelEndDate?: string;
+  travelPurpose?: string;
+  sponsorshipType?: 'self' | 'sponsor';
+  sponsorDetails?: string;
+  accommodationDetails?: string;
+  returnAssurance?: string;
+  supportingDocuments?: string; // Comma separated
+
+  // Business Plan Specifics
+  businessName?: string;
+  ownerName?: string;
+  businessSector?: string;
+  problemStatement?: string;
+  solutionOverview?: string;
+  targetCustomers?: string;
+  competitors?: string;
+  uniqueAdvantage?: string;
+  revenueModel?: string;
+  startupCosts?: string;
+  operatingCosts?: string;
+  expectedRevenue?: string;
+  marketingStrategy?: string;
+  longTermVision?: string;
+
+  // Legal Specifics
+  legalPartyA?: string;
+  legalPartyB?: string;
+  agreementDate?: string;
+  agreementTerms?: string; // Specific clauses
+  financialValue?: string; // Rent amount, sale price, etc.
 
   // Payment State
   isPaid: boolean;

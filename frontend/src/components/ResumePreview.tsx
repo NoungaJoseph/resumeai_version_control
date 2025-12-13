@@ -1,7 +1,7 @@
 
 import React, { forwardRef, useRef, useImperativeHandle, useLayoutEffect, useState, useEffect } from 'react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+import html2pdf from 'html2pdf.js';
+
 import { ResumeData, AIResumeOutput, AICoverLetterOutput } from '../types';
 import { MailIcon, PhoneIcon, MapPinIcon, GlobeIcon } from './Icons';
 
@@ -39,143 +39,46 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  /* 
+   * PDF GENERATION via html2pdf.js
+   * - Direct download (no print dialog)
+   * - Respects CSS page breaks
+   */
   const downloadAsPDF = async () => {
     if (!containerRef.current) return;
 
+    // Use user's full name for filename, sanitized
+    const safeName = (raw.fullName || 'resume')
+      .replace(/[^a-z0-9\\s]/gi, '')
+      .replace(/\\s+/g, '_')
+      .toLowerCase();
+
+    const element = containerRef.current;
+
+    const opt = {
+      margin: 0,
+      filename: `${safeName}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] }
+    };
+
+    // Force visible overflow for capture
+    const originalOverflow = element.style.overflow;
+    const originalHeight = element.style.height;
+    element.style.overflow = 'visible';
+    element.style.height = 'auto';
+
     try {
-      // Temporarily hide scrollbars and ensure full content is visible
-      const originalOverflow = containerRef.current.style.overflow;
-      const originalHeight = containerRef.current.style.height;
-      containerRef.current.style.overflow = 'visible';
-      containerRef.current.style.height = 'auto';
-
-      // Wait for layout to settle
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Get all elements that should not be split
-      const protectedElements = containerRef.current.querySelectorAll('.page-break-avoid');
-      const containerRect = containerRef.current.getBoundingClientRect();
-
-      // A4 dimensions at scale 3 (what html2canvas will use)
-      const SCALE = 3;
-      const A4_HEIGHT_MM = 297;
-      const A4_WIDTH_MM = 210;
-      const MM_TO_PX = 3.7795275591; // at 96 DPI
-      const PAGE_HEIGHT_PX = A4_HEIGHT_MM * MM_TO_PX * SCALE;
-
-      const adjustments: Array<{ element: HTMLElement; originalMargin: string; originalPadding: string }> = [];
-
-      // Process each protected element
-      protectedElements.forEach((el) => {
-        const htmlEl = el as HTMLElement;
-        const rect = htmlEl.getBoundingClientRect();
-
-        // Calculate position relative to container (will be scaled)
-        const relativeTop = (rect.top - containerRect.top) * SCALE;
-        const elementHeight = rect.height * SCALE;
-        const relativeBottom = relativeTop + elementHeight;
-
-        // Determine pages
-        const startPage = Math.floor(relativeTop / PAGE_HEIGHT_PX);
-        const endPage = Math.floor(relativeBottom / PAGE_HEIGHT_PX);
-
-        // If element would be split across pages
-        if (startPage !== endPage && elementHeight < PAGE_HEIGHT_PX * 0.8) {
-          // Calculate space needed to push to next page
-          const nextPageStart = (startPage + 1) * PAGE_HEIGHT_PX;
-          const pushDown = (nextPageStart - relativeTop) / SCALE; // Convert back to unscaled
-
-          const originalMargin = htmlEl.style.marginTop;
-          const originalPadding = htmlEl.style.paddingTop;
-
-          // Add padding instead of margin for better visual results
-          const currentPadding = parseInt(getComputedStyle(htmlEl).paddingTop) || 0;
-          htmlEl.style.paddingTop = `${currentPadding + pushDown}px`;
-
-          adjustments.push({ element: htmlEl, originalMargin, originalPadding });
-        }
-      });
-
-      // Wait again for adjustments to apply
-      await new Promise(resolve => setTimeout(resolve, 150));
-
-      // Generate canvas at high resolution
-      const canvas = await html2canvas(containerRef.current, {
-        scale: SCALE,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowHeight: containerRef.current.scrollHeight,
-        height: containerRef.current.scrollHeight
-      });
-
-      // Restore original styles
-      containerRef.current.style.overflow = originalOverflow;
-      containerRef.current.style.height = originalHeight;
-
-      // Clean up adjustments
-      adjustments.forEach(({ element, originalMargin, originalPadding }) => {
-        element.style.marginTop = originalMargin;
-        element.style.paddingTop = originalPadding;
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      const pageWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
-      const margin = 0; // No margins - content should have its own
-      const contentWidth = pageWidth - (2 * margin);
-
-      const imgWidth = contentWidth;
-      const imgHeight = (canvas.height * contentWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let position = margin;
-
-      // Add first page
-      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      // Add additional pages if needed
-      while (heightLeft > 0) {
-        position = -(pageHeight - heightLeft) - margin;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      // Use user's full name for filename, sanitized
-      const safeName = (raw.fullName || 'resume')
-        .replace(/[^a-z0-9\\s]/gi, '')
-        .replace(/\\s+/g, '_')
-        .toLowerCase();
-
-
-      // Use blob approach for better mobile support - forces download instead of opening in browser
-      const pdfBlob = pdf.output('blob');
-      const blobUrl = URL.createObjectURL(pdfBlob);
-
-      // Create temporary link element
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `${safeName}.pdf`;
-      link.style.display = 'none';
-
-      // Append to body, click, and remove
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Clean up the blob URL after a delay
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+      await html2pdf().set(opt).from(element).save();
     } catch (err) {
       console.error("PDF generation failed", err);
-      alert("Failed to generate PDF. Please try again.");
+      alert("Failed to generate PDF automatically. Please try the print option.");
+    } finally {
+      // Restore styles
+      element.style.overflow = originalOverflow;
+      element.style.height = originalHeight;
     }
   };
 
@@ -401,6 +304,403 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
             {(raw.template === 'cv-professional' || raw.template === 'cv-corporate') && (
               <div className="h-3 w-full bg-slate-800 print:h-2"></div>
             )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- MOTIVATION LETTER ---
+  if (raw.mode === 'motivation-letter') {
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[25mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:overflow-visible font-serif">
+            <h1 className="text-3xl font-bold mb-2 text-center text-slate-900 border-b-2 border-slate-900 pb-4">{raw.fullName}</h1>
+            <div className="mb-8 flex justify-between text-sm text-slate-600">
+              <div className="space-y-1">
+                <p>{raw.email}</p>
+                <p>{raw.phone}</p>
+                <p>{raw.location}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-slate-900">{today}</p>
+              </div>
+            </div>
+
+            <div className="mb-8 bg-slate-50 p-6 rounded-lg border border-slate-200 break-inside-avoid">
+              <p className="font-bold text-slate-900">To: {raw.organizationName || "[Organization Name]"}</p>
+              <p className="text-slate-700">Re: Motivation Statement for {raw.positionApplied || "[Position/Opportunity]"}</p>
+            </div>
+
+            <div className="space-y-6 text-justify leading-relaxed text-slate-800">
+              <p>Dear Selection Committee,</p>
+              <p className="whitespace-pre-line">{raw.motivationText || "[Your motivation text will appear here...]"}</p>
+
+              {raw.skills && (
+                <div className="mt-4 break-inside-avoid">
+                  <h3 className="font-bold border-b border-slate-300 mb-2 uppercase text-sm tracking-wide">Key Competencies</h3>
+                  <p className="whitespace-pre-line">{raw.skills}</p>
+                </div>
+              )}
+              {raw.summary && (
+                <div className="mt-4 break-inside-avoid">
+                  <h3 className="font-bold border-b border-slate-300 mb-2 uppercase text-sm tracking-wide">Relevant Background</h3>
+                  <p className="whitespace-pre-line">{raw.summary}</p>
+                </div>
+              )}
+
+              <div className="mt-12 break-inside-avoid">
+                <p className="mb-4">Sincerely,</p>
+                <p className="font-bold text-lg border-t border-slate-900 inline-block pt-2 min-w-[200px]">{raw.fullName}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- INTERNSHIP APPLICATION ---
+  if (raw.mode === 'internship-letter') {
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[25mm] text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:overflow-visible">
+            <header className="border-b-4 border-blue-900 pb-6 mb-8 flex justify-between items-start">
+              <div>
+                <h1 className="text-3xl font-bold uppercase text-blue-900 tracking-wider mb-1">{raw.fullName}</h1>
+                <p className="text-lg font-medium text-slate-500">{raw.program} Student | {raw.educationLevel}</p>
+              </div>
+              <div className="text-right text-sm text-slate-600">
+                <p>{raw.schoolName}</p>
+                <p>{raw.email}</p>
+                <p>{raw.phone}</p>
+              </div>
+            </header>
+
+            <div className="mb-8">
+              <p className="font-bold text-slate-900">{today}</p>
+              <br />
+              <p>Hiring Manager / Internship Coordinator</p>
+              <p className="font-bold text-slate-900">{raw.companyName || "[Company Name]"}</p>
+              {raw.supervisorName && <p>Attn: {raw.supervisorName}</p>}
+            </div>
+
+            <div className="mb-6 font-bold underline decoration-blue-900 decoration-2 underline-offset-4">
+              SUBJECT: INTERNSHIP APPLICATION ({raw.internshipStartDate} - {raw.internshipEndDate})
+            </div>
+
+            <div className="space-y-4 text-justify leading-relaxed">
+              <p>Dear Sir/Madam,</p>
+              <p className="whitespace-pre-line">{raw.motivationText || "[Motivation...]"}</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
+                {raw.skills && (
+                  <div className="bg-slate-50 p-4 border-l-4 border-blue-600 break-inside-avoid">
+                    <h3 className="font-bold text-blue-900 mb-2">Skills Offered</h3>
+                    <p className="text-sm whitespace-pre-line">{raw.skills}</p>
+                  </div>
+                )}
+                {raw.expectedOutcomes && (
+                  <div className="bg-slate-50 p-4 border-l-4 border-slate-500 break-inside-avoid">
+                    <h3 className="font-bold text-slate-900 mb-2">Learning Objectives</h3>
+                    <p className="text-sm whitespace-pre-line">{raw.expectedOutcomes}</p>
+                  </div>
+                )}
+              </div>
+
+              <p>I am eager to contribute to {raw.companyName} and look forward to the possibility of discussing this opportunity.</p>
+
+              <div className="mt-12 break-inside-avoid">
+                <p>Respectfully,</p>
+                <p className="font-bold text-lg mt-2">{raw.fullName}</p>
+                <p className="text-sm text-slate-500">{raw.phone}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- VISA COVER LETTER ---
+  if (raw.mode === 'visa-letter') {
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[20mm] text-slate-900 mx-auto box-border print:w-full print:min-h-0 print:overflow-visible font-serif text-[11pt]">
+
+            {/* Formal Header */}
+            <div className="text-center border-b border-black pb-4 mb-6">
+              <h1 className="font-bold uppercase tracking-widest text-xl">Visa Application Cover Letter</h1>
+            </div>
+
+            <div className="flex justify-between items-start mb-8 text-sm">
+              <div>
+                <p className="font-bold">{raw.fullName}</p>
+                <p>Passport No: {raw.passportNumber}</p>
+                <p>{raw.nationality} Citizen</p>
+                <p>{raw.location}</p>
+                <p>{raw.phone}</p>
+                <p>{raw.email}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-bold">Date: {today}</p>
+                <div className="mt-4 text-left border border-black p-2 min-w-[200px]">
+                  <p className="font-bold text-xs uppercase text-slate-500">To The Visa Officer</p>
+                  <p className="font-bold">{raw.embassyDetails || "[Embassy Name & Address]"}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6 font-bold uppercase text-center bg-slate-100 py-1 border-y border-slate-300">
+              Subject: Application for Visitor Visa to {raw.destinationCountry}
+            </div>
+
+            <div className="space-y-4 leading-relaxed text-justify">
+              <p>Dear Honorable Consul,</p>
+              <p>I, <strong>{raw.fullName}</strong> (DOB: {raw.dob}, Passport: {raw.passportNumber}), formally request a visa to visit {raw.destinationCountry} from <strong>{raw.travelStartDate}</strong> to <strong>{raw.travelEndDate}</strong>.</p>
+
+              {/* Purpose */}
+              <div className="break-inside-avoid">
+                <h3 className="font-bold underline mb-1">Purpose of Travel</h3>
+                <p className="whitespace-pre-line">{raw.travelPurpose}</p>
+              </div>
+
+              {/* Financials */}
+              <div className="break-inside-avoid">
+                <h3 className="font-bold underline mb-1">Financial Means & Sponsorship</h3>
+                <p>
+                  {raw.sponsorshipType === 'self'
+                    ? "I am self-sponsoring this trip and have attached proof of sufficient funds to cover all travel, accommodation, and daily expenses."
+                    : raw.sponsorDetails}
+                </p>
+              </div>
+
+              {/* Accommodation */}
+              <div className="break-inside-avoid">
+                <h3 className="font-bold underline mb-1">Accommodation</h3>
+                <p className="whitespace-pre-line">{raw.accommodationDetails}</p>
+              </div>
+
+              {/* Return Assurance */}
+              <div className="break-inside-avoid">
+                <h3 className="font-bold underline mb-1">Ties to Home Country</h3>
+                <p className="whitespace-pre-line">{raw.returnAssurance}</p>
+                <p className="mt-1">I strictly intend to return to my home country before my visa expires.</p>
+              </div>
+
+              {/* Documents List */}
+              <div className="break-inside-avoid mt-4">
+                <p className="font-bold mb-2">Please find enclosed the following supporting documents:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm pl-4">
+                  <li>Valid Passport (Issue: {raw.passportIssueDate}, Expiry: {raw.passportExpiryDate})</li>
+                  <li>Visa Application Form</li>
+                  <li>Travel Itinerary & Flight Reservation</li>
+                  <li>Proof of Accommodation</li>
+                  <li>Proof of Financial Means</li>
+                  {raw.supportingDocuments && raw.supportingDocuments.split(',').map((doc, i) => (
+                    <li key={i}>{doc.trim()}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <p className="mt-6">I trust that my application is in order and look forward to a positive response.</p>
+
+              <div className="mt-10 break-inside-avoid">
+                <p>Sincerely,</p>
+                <div className="h-16"></div> {/* Signature space */}
+                <p className="font-bold border-t border-black inline-block pt-1 min-w-[200px]">{raw.fullName}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- BUSINESS PLAN ---
+  if (raw.mode === 'business-plan') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white text-slate-800 mx-auto box-border print:w-full print:min-h-0 print:overflow-visible">
+
+            {/* Cover Page */}
+            <div className="h-[297mm] flex flex-col justify-center items-center text-center p-10 bg-slate-900 text-white relative overflow-hidden page-break-after-always">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600 rounded-full blur-[100px] opacity-20 pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-600 rounded-full blur-[100px] opacity-20 pointer-events-none"></div>
+
+              <h1 className="text-6xl font-black uppercase tracking-tight mb-4">{raw.businessName || "BUSINESS NAME"}</h1>
+              <p className="text-2xl font-light text-slate-300 tracking-[0.2em] uppercase mb-16">Business Plan</p>
+
+              <div className="border-t border-white/20 pt-8 w-full max-w-md">
+                <p className="text-lg font-bold">{raw.ownerName}</p>
+                <p className="text-slate-400">{raw.location}</p>
+                <p className="text-slate-400 mt-2">{new Date().getFullYear()}</p>
+              </div>
+            </div>
+
+            {/* Content Pages */}
+            <div className="p-[20mm]">
+
+              {/* Executive Summary */}
+              <section className="mb-10">
+                <h2 className="text-2xl font-bold uppercase text-slate-900 border-b-4 border-blue-600 mb-6 pb-2 inline-block">Executive Summary</h2>
+                <div className="space-y-4">
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 break-inside-avoid">
+                    <h3 className="font-bold text-blue-900 mb-2">Problem</h3>
+                    <p>{raw.problemStatement}</p>
+                  </div>
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 break-inside-avoid">
+                    <h3 className="font-bold text-green-900 mb-2">Solution</h3>
+                    <p>{raw.solutionOverview}</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Market Analysis */}
+              <section className="mb-10 break-inside-avoid">
+                <h2 className="text-2xl font-bold uppercase text-slate-900 border-b-4 border-slate-300 mb-6 pb-2 inline-block">Market Analysis</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-bold text-slate-700 uppercase text-xs tracking-wider mb-1">Target Audience</h4>
+                    <p className="text-sm text-justify">{raw.targetCustomers}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-700 uppercase text-xs tracking-wider mb-1">Competition</h4>
+                    <p className="text-sm text-justify">{raw.competitors}</p>
+                  </div>
+                  <div className="md:col-span-2 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                    <h4 className="font-bold text-blue-900 uppercase text-xs tracking-wider mb-1">Unique Selling Proposition</h4>
+                    <p className="font-medium">{raw.uniqueAdvantage}</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Strategy & Vision */}
+              <section className="mb-10 break-inside-avoid">
+                <h2 className="text-2xl font-bold uppercase text-slate-900 border-b-4 border-purple-600 mb-6 pb-2 inline-block">Strategy</h2>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-bold">Marketing Plan</h4>
+                    <p className="text-sm">{raw.marketingStrategy}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-bold">Long-Term Vision</h4>
+                    <p className="text-sm">{raw.longTermVision}</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Financials */}
+              <section className="mb-10 break-inside-avoid">
+                <h2 className="text-2xl font-bold uppercase text-slate-900 border-b-4 border-green-600 mb-6 pb-2 inline-block">Financial Overview</h2>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-4 bg-slate-900 text-white rounded-lg text-center">
+                    <p className="text-xs text-slate-400 uppercase">Startup Cost</p>
+                    <p className="text-xl font-bold">{raw.startupCosts}</p>
+                  </div>
+                  <div className="p-4 bg-green-700 text-white rounded-lg text-center">
+                    <p className="text-xs text-green-200 uppercase">Expected Revenue</p>
+                    <p className="text-xl font-bold">{raw.expectedRevenue}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-8 text-sm border-t pt-4">
+                  <div>
+                    <span className="font-bold block text-slate-500">Revenue Model</span>
+                    {raw.revenueModel}
+                  </div>
+                  <div>
+                    <span className="font-bold block text-slate-500">Monthly OpEx</span>
+                    {raw.operatingCosts}
+                  </div>
+                </div>
+              </section>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- LEGAL AGREEMENT ---
+  if (raw.mode === 'legal-agreement') {
+    return (
+      <div className="w-full flex justify-center py-8 print:p-0 print:w-full">
+        <div className="shadow-xl print:shadow-none bg-white preview-container-shadow print:w-full">
+          <div ref={containerRef} className="w-[210mm] min-h-[297mm] bg-white p-[25mm] text-black mx-auto box-border print:w-full print:min-h-0 print:overflow-visible font-serif leading-loose text-justify">
+
+            <h1 className="text-center font-bold uppercase text-2xl mb-8 border-b-2 border-black pb-4">
+              {raw.template === 'legal-lease' ? 'LEASE AGREEMENT' :
+                raw.template === 'legal-partnership' ? 'PARTNERSHIP AGREEMENT' :
+                  raw.template === 'legal-sale' ? 'SALE AGREEMENT' : 'LEGAL AGREEMENT'}
+            </h1>
+
+            <p className="mb-6">
+              This Agreement is made on this <strong>{raw.agreementDate || "[Date]"}</strong>, by and between:
+            </p>
+
+            <div className="pl-6 mb-6">
+              <p className="mb-4">
+                <strong>1. FIRST PARTY:</strong> {raw.legalPartyA || "[Party A Name]"}, hereinafter referred to as the
+                "{raw.template === 'legal-lease' ? 'Landlord' : raw.template === 'legal-sale' ? 'Seller' : 'First Party'}".
+              </p>
+              <p>
+                <strong>2. SECOND PARTY:</strong> {raw.legalPartyB || "[Party B Name]"}, hereinafter referred to as the
+                "{raw.template === 'legal-lease' ? 'Tenant' : raw.template === 'legal-sale' ? 'Buyer' : 'Second Party'}".
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              <h3 className="font-bold text-center underline">WHEREAS:</h3>
+
+              <div className="pl-6">
+                <p>The Parties wish to enter into an agreement for the {raw.template === 'legal-lease' ? 'lease of property' : 'transaction described below'};</p>
+              </div>
+
+              <h3 className="font-bold text-center underline">IT IS HEREBY AGREED AS FOLLOWS:</h3>
+
+              <div className="space-y-4">
+                <div className="break-inside-avoid">
+                  <span className="font-bold mr-2">1. CONSIDERATION:</span>
+                  The financial value associated with this agreement is <strong>{raw.financialValue || "[Amount]"}</strong>, to be paid as per the agreed schedule.
+                </div>
+
+                <div className="break-inside-avoid">
+                  <span className="font-bold mr-2">2. TERMS AND CONDITIONS:</span>
+                  <p className="whitespace-pre-line pl-6 mt-2">{raw.agreementTerms || "[Enter specific terms here...]"}</p>
+                </div>
+
+                <div className="break-inside-avoid">
+                  <span className="font-bold mr-2">3. GOVERNING LAW:</span>
+                  This Agreement shall be governed by and construed in accordance with the laws of the applicable jurisdiction.
+                </div>
+              </div>
+
+              <div className="mt-16 flex justify-between items-end break-inside-avoid">
+                <div className="text-center w-1/3">
+                  <div className="border-b border-black mb-2 h-12"></div>
+                  <p className="uppercase font-bold text-xs">{raw.legalPartyA}</p>
+                  <p className="text-xs text-slate-500">(Signature)</p>
+                </div>
+                <div className="text-center w-1/3">
+                  <div className="border-b border-black mb-2 h-12"></div>
+                  <p className="uppercase font-bold text-xs">{raw.legalPartyB}</p>
+                  <p className="text-xs text-slate-500">(Signature)</p>
+                </div>
+              </div>
+
+              <div className="mt-8 text-center text-xs text-slate-400 italic">
+                * This document is a generated template and does not constitute professional legal advice.
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -1143,8 +1443,8 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
             {/* Footer */}
             <div className="text-right py-2 px-6 text-[10px] text-slate-500">
               <div className="flex items-center justify-end gap-2">
-                <span>👍</span>
-                <span className="font-bold">Powered by ResumeAI</span>
+                <span></span>
+                <span className="font-bold"></span>
               </div>
             </div>
 
@@ -1302,13 +1602,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               </section>
             </div>
 
-            {/* Footer */}
-            <div className="text-right py-2 px-6 text-[10px] text-slate-500">
-              <div className="flex items-center justify-end gap-2">
-                <span>👍</span>
-                <span className="font-bold">179</span>
-              </div>
-            </div>
+
 
           </div>
         </div>
@@ -1431,13 +1725,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               </section>
             </div>
 
-            {/* Footer */}
-            <div className="text-right py-2 px-6 text-[10px] text-slate-500">
-              <div className="flex items-center justify-end gap-2">
-                <span>👍</span>
-                <span className="font-bold">179</span>
-              </div>
-            </div>
+
 
           </div>
         </div>
@@ -1552,13 +1840,7 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
               </section>
             </div>
 
-            {/* Footer */}
-            <div className="text-right py-2 px-6 text-[10px] text-slate-500">
-              <div className="flex items-center justify-end gap-2">
-                <span>👍</span>
-                <span className="font-bold">179</span>
-              </div>
-            </div>
+
 
           </div>
         </div>

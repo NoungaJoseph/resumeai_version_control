@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SparklesIcon, PlusIcon, TrashIcon, CheckIcon } from '../components/Icons';
 import { useResume } from '../context/ResumeContext';
-import { generateProfessionalResume, generateCoverLetter } from '../services/geminiService';
+import { generateProfessionalResume, generateCoverLetter, enhanceText } from '../services/geminiService';
 import { UI, ROLES, COLORS } from '../constants';
 import { generateId, formatDate } from '../utils';
 import { ResumeData } from '../types';
@@ -11,6 +11,7 @@ export const EditPage: React.FC = () => {
     const navigate = useNavigate();
     const { data, setData, setAiOutput, setAiCoverLetter } = useResume();
     const [isGenerating, setIsGenerating] = useState(false);
+    const [enhancingField, setEnhancingField] = useState<string | null>(null);
     const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const t = UI;
@@ -42,10 +43,46 @@ export const EditPage: React.FC = () => {
         }
     };
 
+    const handleEnhanceContent = async (field: keyof ResumeData, context: string, type: string = 'formal') => {
+        const currentText = data[field] as string;
+        if (!currentText || currentText.length < 5) {
+            alert("Please provide some initial text to enhance.");
+            return;
+        }
+
+        setEnhancingField(String(field));
+        try {
+            const result = await enhanceText(currentText, context, type);
+            updateField(field, result);
+        } catch (error) {
+            alert("Failed to enhance text.");
+        } finally {
+            setEnhancingField(null);
+        }
+    };
+
     const loadSampleData = () => {
         if (confirm("This will replace your current data with sample data. Continue?")) {
             import('../data/sampleData').then(module => {
-                setData(module.SAMPLE_RESUME_DATA);
+                switch (data.mode) {
+                    case 'motivation-letter':
+                        setData(module.SAMPLE_MOTIVATION_DATA);
+                        break;
+                    case 'internship-letter':
+                        setData(module.SAMPLE_INTERNSHIP_DATA);
+                        break;
+                    case 'visa-letter':
+                        setData(module.SAMPLE_VISA_DATA);
+                        break;
+                    case 'business-plan':
+                        setData(module.SAMPLE_BUSINESS_PLAN_DATA);
+                        break;
+                    case 'legal-agreement':
+                        setData(module.SAMPLE_LEGAL_DATA);
+                        break;
+                    default:
+                        setData(module.SAMPLE_RESUME_DATA);
+                }
             });
         }
     };
@@ -190,6 +227,11 @@ export const EditPage: React.FC = () => {
                             <option value="resume">{t.resume}</option>
                             <option value="cv">{t.cv}</option>
                             <option value="cover-letter">{t.coverLetter}</option>
+                            <option value="motivation-letter">Motivation Letter</option>
+                            <option value="internship-letter">Internship Application</option>
+                            <option value="visa-letter">Visa Cover Letter</option>
+                            <option value="business-plan">Business Plan</option>
+                            <option value="legal-agreement">Legal Template</option>
                         </select>
                     </div>
 
@@ -218,16 +260,22 @@ export const EditPage: React.FC = () => {
                     <div className="p-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 flex justify-between items-center">
                         <div>
                             <h2 className="text-xl font-bold text-slate-800">
-                                {data.mode === 'cv' ? t.cvDetails : data.mode === 'cover-letter' ? t.letterDetails : t.resumeDetails}
+                                {data.mode === 'cv' ? t.cvDetails :
+                                    data.mode === 'resume' ? t.resumeDetails :
+                                        data.mode === 'business-plan' ? 'Business Plan Details' :
+                                            data.mode === 'legal-agreement' ? 'Legal Document Details' :
+                                                t.letterDetails}
                             </h2>
                             <p className="text-sm text-slate-600 mt-1">
-                                {data.mode === 'cover-letter' ? t.craftLetter : t.buildProfile}
+                                {data.mode === 'business-plan' ? 'Structure your business strategy.' :
+                                    data.mode === 'legal-agreement' ? 'Generate legal contracts.' :
+                                        data.mode.endsWith('letter') ? t.craftLetter : t.buildProfile}
                             </p>
                         </div>
                     </div>
 
                     <div className="p-6 space-y-8">
-                        {data.mode === 'cover-letter' ? (
+                        {(data.mode === 'cover-letter' || data.mode === 'motivation-letter' || data.mode === 'internship-letter' || data.mode === 'visa-letter') && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                                 <section>
                                     <label className="block text-sm font-semibold text-slate-700 mb-3">{t.matchingStyle}</label>
@@ -268,10 +316,12 @@ export const EditPage: React.FC = () => {
                                         value={data.targetRole}
                                         onChange={(e) => updateField('targetRole', e.target.value)}
                                     >
-                                        <option value="" disabled>Select role...</option>
-                                        {ROLES.map(role => (
+                                        <option value="" disabled>Select role/purpose...</option>
+                                        {data.mode === 'cover-letter' ? ROLES.map(role => (
                                             <option key={role} value={role}>{role}</option>
-                                        ))}
+                                        )) : (
+                                            <option value="custom">General Purpose</option>
+                                        )}
                                     </select>
                                 </section>
 
@@ -328,7 +378,9 @@ export const EditPage: React.FC = () => {
                                     </div>
                                 </section>
                             </div>
-                        ) : (
+                        )}
+
+                        {(data.mode === 'resume' || data.mode === 'cv') && (
                             <>
                                 <section className="space-y-5">
                                     <div>
@@ -582,7 +634,7 @@ export const EditPage: React.FC = () => {
                                     <section className="space-y-6 border-t border-slate-100 pt-6">
                                         <h3 className="font-semibold text-slate-800 flex items-center gap-3">
                                             <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">2</span>
-                                            {t.experience}
+                                            {t.addExperience}
                                         </h3>
                                         {data.experience.map((exp) => (
                                             <div key={exp.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 relative group hover:border-blue-300 transition-colors">
@@ -695,7 +747,234 @@ export const EditPage: React.FC = () => {
                                 </section>
                             </>
                         )}
-                    </div>
+
+                        {/* Motivation Letter Form */}
+                        {data.mode === 'motivation-letter' && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                                <section>
+                                    <h3 className="font-semibold text-slate-800 mb-4">Motivation Letter Details</h3>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <input type="text" placeholder="Organization Name" className="input-field enhanced" value={data.organizationName || ''} onChange={(e) => updateField('organizationName', e.target.value)} />
+                                        <input type="text" placeholder="Position or Opportunity" className="input-field enhanced" value={data.positionApplied || ''} onChange={(e) => updateField('positionApplied', e.target.value)} />
+
+                                        <div className="flex justify-between items-center mt-2">
+                                            <label className="block text-sm font-semibold text-slate-700">Motivation Text</label>
+                                            <button
+                                                onClick={() => handleEnhanceContent('motivationText', `Motivation letter for ${data.positionApplied} at ${data.organizationName}`, 'persuasive')}
+                                                disabled={enhancingField === 'motivationText'}
+                                                className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded hover:bg-purple-200 transition-colors flex items-center gap-1"
+                                            >
+                                                <SparklesIcon className="w-3 h-3" /> {enhancingField === 'motivationText' ? 'Enhancing...' : 'Enhance with AI'}
+                                            </button>
+                                        </div>
+                                        <textarea placeholder="Why are you applying? (The AI can enhance this)" className="input-field enhanced h-40" value={data.motivationText || ''} onChange={(e) => updateField('motivationText', e.target.value)} />
+
+                                        <label className="block text-sm font-semibold text-slate-700 mt-2">Skills Summary</label>
+                                        <textarea placeholder="Relevant skills..." className="input-field enhanced h-24" value={data.skills || ''} onChange={(e) => updateField('skills', e.target.value)} />
+
+                                        <label className="block text-sm font-semibold text-slate-700 mt-2">Experience Summary</label>
+                                        <textarea placeholder="Relevant experience..." className="input-field enhanced h-24" value={data.summary || ''} onChange={(e) => updateField('summary', e.target.value)} />
+                                    </div>
+                                </section>
+                            </div>
+                        )}
+
+                        {/* Internship Letter Form */}
+                        {data.mode === 'internship-letter' && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                                <section>
+                                    <h3 className="font-semibold text-slate-800 mb-4">Internship Application</h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <input type="text" placeholder="Full Name" className="input-field enhanced" value={data.fullName} onChange={(e) => updateField('fullName', e.target.value)} />
+                                        <input type="email" placeholder="Email" className="input-field enhanced" value={data.email} onChange={(e) => updateField('email', e.target.value)} />
+                                        <input type="tel" placeholder="Phone" className="input-field enhanced" value={data.phone} onChange={(e) => updateField('phone', e.target.value)} />
+                                        <input type="text" placeholder="Address" className="input-field enhanced" value={data.location} onChange={(e) => updateField('location', e.target.value)} />
+
+                                        <input type="text" placeholder="School/University Name" className="input-field enhanced" value={data.schoolName || ''} onChange={(e) => updateField('schoolName', e.target.value)} />
+                                        <input type="text" placeholder="Program / Field of Study" className="input-field enhanced" value={data.program || ''} onChange={(e) => updateField('program', e.target.value)} />
+                                        <input type="text" placeholder="Level (BTS, Degree...)" className="input-field enhanced" value={data.educationLevel || ''} onChange={(e) => updateField('educationLevel', e.target.value)} />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                                        <div>
+                                            <label className="text-xs text-slate-500">Internship Start Date</label>
+                                            <input type="date" className="input-field enhanced" value={data.internshipStartDate || ''} onChange={(e) => updateField('internshipStartDate', e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-slate-500">Internship End Date</label>
+                                            <input type="date" className="input-field enhanced" value={data.internshipEndDate || ''} onChange={(e) => updateField('internshipEndDate', e.target.value)} />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 space-y-4">
+                                        <input type="text" placeholder="Target Company Name" className="input-field enhanced" value={data.companyName || ''} onChange={(e) => updateField('companyName', e.target.value)} />
+                                        <input type="text" placeholder="Supervisor Name (Optional)" className="input-field enhanced" value={data.supervisorName || ''} onChange={(e) => updateField('supervisorName', e.target.value)} />
+
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-sm font-semibold text-slate-700">Motivation</label>
+                                            <button
+                                                onClick={() => handleEnhanceContent('motivationText', `Internship application for ${data.program} student at ${data.companyName}`, 'formal')}
+                                                disabled={enhancingField === 'motivationText'}
+                                                className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded hover:bg-purple-200 transition-colors flex items-center gap-1"
+                                            >
+                                                <SparklesIcon className="w-3 h-3" /> {enhancingField === 'motivationText' ? 'Enhancing...' : 'Enhance'}
+                                            </button>
+                                        </div>
+                                        <textarea placeholder="Motivation for this internship..." className="input-field enhanced h-32" value={data.motivationText || ''} onChange={(e) => updateField('motivationText', e.target.value)} />
+                                        <textarea placeholder="Skills offered..." className="input-field enhanced h-24" value={data.skills || ''} onChange={(e) => updateField('skills', e.target.value)} />
+                                        <textarea placeholder="Expected learning outcomes..." className="input-field enhanced h-24" value={data.expectedOutcomes || ''} onChange={(e) => updateField('expectedOutcomes', e.target.value)} />
+                                    </div>
+                                </section>
+                            </div>
+                        )}
+
+                        {/* Visa Letter Form */}
+                        {data.mode === 'visa-letter' && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                                <section>
+                                    <h3 className="font-semibold text-slate-800 mb-4">Visa Application Details</h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <input type="text" placeholder="Full Name (as in Passport)" className="input-field enhanced" value={data.fullName} onChange={(e) => updateField('fullName', e.target.value)} />
+                                        <input type="date" placeholder="Date of Birth" className="input-field enhanced" value={data.dob || ''} onChange={(e) => updateField('dob', e.target.value)} />
+                                        <input type="text" placeholder="Passport Number" className="input-field enhanced" value={data.passportNumber || ''} onChange={(e) => updateField('passportNumber', e.target.value)} />
+                                        <input type="text" placeholder="Nationality" className="input-field enhanced" value={data.nationality || ''} onChange={(e) => updateField('nationality', e.target.value)} />
+
+                                        <div>
+                                            <label className="text-xs text-slate-500">Passport Issue Date</label>
+                                            <input type="date" className="input-field enhanced" value={data.passportIssueDate || ''} onChange={(e) => updateField('passportIssueDate', e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-slate-500">Passport Expiry Date</label>
+                                            <input type="date" className="input-field enhanced" value={data.passportExpiryDate || ''} onChange={(e) => updateField('passportExpiryDate', e.target.value)} />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 space-y-4">
+                                        <h4 className="text-sm font-semibold text-slate-700">Trip Details</h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <input type="text" placeholder="Destination Country" className="input-field enhanced" value={data.destinationCountry || ''} onChange={(e) => updateField('destinationCountry', e.target.value)} />
+                                            <input type="text" placeholder="Embassy Name/Address" className="input-field enhanced" value={data.embassyDetails || ''} onChange={(e) => updateField('embassyDetails', e.target.value)} />
+                                            <div>
+                                                <label className="text-xs text-slate-500">Travel Start Date</label>
+                                                <input type="date" className="input-field enhanced" value={data.travelStartDate || ''} onChange={(e) => updateField('travelStartDate', e.target.value)} />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-slate-500">Travel End Date</label>
+                                                <input type="date" className="input-field enhanced" value={data.travelEndDate || ''} onChange={(e) => updateField('travelEndDate', e.target.value)} />
+                                            </div>
+                                        </div>
+
+
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-sm font-semibold text-slate-700">Purpose of Travel</label>
+                                            <button
+                                                onClick={() => handleEnhanceContent('travelPurpose', `Visa application purpose for ${data.destinationCountry}`, 'formal')}
+                                                disabled={enhancingField === 'travelPurpose'}
+                                                className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded hover:bg-purple-200 transition-colors flex items-center gap-1"
+                                            >
+                                                <SparklesIcon className="w-3 h-3" /> {enhancingField === 'travelPurpose' ? 'Enhancing...' : 'Enhance'}
+                                            </button>
+                                        </div>
+                                        <textarea placeholder="Purpose of Travel (Be specific)" className="input-field enhanced h-24" value={data.travelPurpose || ''} onChange={(e) => updateField('travelPurpose', e.target.value)} />
+                                    </div>
+
+                                    <div className="mt-6 space-y-4">
+                                        <h4 className="text-sm font-semibold text-slate-700">Sponsorship & Accommodation</h4>
+                                        <select
+                                            className="w-full input-field enhanced"
+                                            value={data.sponsorshipType || 'self'}
+                                            onChange={(e) => updateField('sponsorshipType', e.target.value)}
+                                        >
+                                            <option value="self">Self-Sponsored</option>
+                                            <option value="sponsor">Sponsored by Other</option>
+                                        </select>
+
+                                        {data.sponsorshipType === 'sponsor' && (
+                                            <textarea placeholder="Sponsor Details (Name, Relationship, Financial proof...)" className="input-field enhanced h-24" value={data.sponsorDetails || ''} onChange={(e) => updateField('sponsorDetails', e.target.value)} />
+                                        )}
+
+                                        <textarea placeholder="Accommodation Details (Hotel name, Address...)" className="input-field enhanced h-24" value={data.accommodationDetails || ''} onChange={(e) => updateField('accommodationDetails', e.target.value)} />
+                                        <textarea placeholder="Return Assurance (Reasons you will return home - Job, Family, Property...)" className="input-field enhanced h-24" value={data.returnAssurance || ''} onChange={(e) => updateField('returnAssurance', e.target.value)} />
+                                        <textarea placeholder="List of Supporting Documents (Bank statements, Invitation letter...)" className="input-field enhanced h-24" value={data.supportingDocuments || ''} onChange={(e) => updateField('supportingDocuments', e.target.value)} />
+                                    </div>
+                                </section>
+                            </div>
+                        )
+                        }
+
+                        {/* Business Plan Form */}
+                        {
+                            data.mode === 'business-plan' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                                    <section>
+                                        <h3 className="font-semibold text-slate-800 mb-4">Business Plan Details</h3>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <input type="text" placeholder="Business Name" className="input-field enhanced" value={data.businessName || ''} onChange={(e) => updateField('businessName', e.target.value)} />
+                                            <input type="text" placeholder="Owner Name" className="input-field enhanced" value={data.ownerName || ''} onChange={(e) => updateField('ownerName', e.target.value)} />
+                                            <input type="text" placeholder="Business Location" className="input-field enhanced" value={data.location || ''} onChange={(e) => updateField('location', e.target.value)} />
+                                            <input type="text" placeholder="Business Sector" className="input-field enhanced" value={data.businessSector || ''} onChange={(e) => updateField('businessSector', e.target.value)} />
+                                        </div>
+
+                                        <div className="space-y-4 mt-4">
+                                            <textarea placeholder="Problem Statement" className="input-field enhanced h-24" value={data.problemStatement || ''} onChange={(e) => updateField('problemStatement', e.target.value)} />
+                                            <textarea placeholder="Solution Overview" className="input-field enhanced h-24" value={data.solutionOverview || ''} onChange={(e) => updateField('solutionOverview', e.target.value)} />
+                                            <textarea placeholder="Target Customers" className="input-field enhanced h-24" value={data.targetCustomers || ''} onChange={(e) => updateField('targetCustomers', e.target.value)} />
+                                            <textarea placeholder="Competitors" className="input-field enhanced h-24" value={data.competitors || ''} onChange={(e) => updateField('competitors', e.target.value)} />
+                                            <textarea placeholder="Unique Advantage (USP)" className="input-field enhanced h-24" value={data.uniqueAdvantage || ''} onChange={(e) => updateField('uniqueAdvantage', e.target.value)} />
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                                            <input type="text" placeholder="Startup Costs" className="input-field enhanced" value={data.startupCosts || ''} onChange={(e) => updateField('startupCosts', e.target.value)} />
+                                            <input type="text" placeholder="Monthly Operating Costs" className="input-field enhanced" value={data.operatingCosts || ''} onChange={(e) => updateField('operatingCosts', e.target.value)} />
+                                            <input type="text" placeholder="Expected Monthly Revenue" className="input-field enhanced" value={data.expectedRevenue || ''} onChange={(e) => updateField('expectedRevenue', e.target.value)} />
+                                            <input type="text" placeholder="Revenue Model (e.g. Sales, Subscription)" className="input-field enhanced" value={data.revenueModel || ''} onChange={(e) => updateField('revenueModel', e.target.value)} />
+                                        </div>
+
+                                        <div className="space-y-4 mt-4">
+                                            <textarea placeholder="Marketing Strategy" className="input-field enhanced h-24" value={data.marketingStrategy || ''} onChange={(e) => updateField('marketingStrategy', e.target.value)} />
+                                            <textarea placeholder="Long Term Vision" className="input-field enhanced h-24" value={data.longTermVision || ''} onChange={(e) => updateField('longTermVision', e.target.value)} />
+                                        </div>
+                                    </section>
+                                </div>
+                            )
+                        }
+
+                        {/* Legal Agreement Form */}
+                        {
+                            data.mode === 'legal-agreement' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                                    <section>
+                                        <h3 className="font-semibold text-slate-800 mb-4">Legal Document Details</h3>
+
+                                        <label className="block text-sm font-semibold text-slate-700 mb-2">Template Type</label>
+                                        <select
+                                            className="w-full input-field enhanced mb-4"
+                                            value={data.template.startsWith('legal-') ? data.template : 'legal-lease'}
+                                            onChange={(e) => updateField('template', e.target.value)}
+                                        >
+                                            <option value="legal-lease">Lease Agreement</option>
+                                            <option value="legal-partnership">Partnership Agreement</option>
+                                            <option value="legal-sale">Sale Agreement</option>
+                                        </select>
+
+                                        <div className="grid grid-cols-1 gap-4">
+                                            <input type="text" placeholder="Party A Name (e.g. Landlord/Seller)" className="input-field enhanced" value={data.legalPartyA || ''} onChange={(e) => updateField('legalPartyA', e.target.value)} />
+                                            <input type="text" placeholder="Party B Name (e.g. Tenant/Buyer)" className="input-field enhanced" value={data.legalPartyB || ''} onChange={(e) => updateField('legalPartyB', e.target.value)} />
+                                            <input type="date" placeholder="Agreement Date" className="input-field enhanced" value={data.agreementDate || ''} onChange={(e) => updateField('agreementDate', e.target.value)} />
+                                            <input type="text" placeholder="Financial Value (e.g. Rent Amount)" className="input-field enhanced" value={data.financialValue || ''} onChange={(e) => updateField('financialValue', e.target.value)} />
+
+                                            <label className="block text-sm font-semibold text-slate-700 mt-2">Specific Terms & Conditions</label>
+                                            <textarea placeholder="Enter specific terms..." className="input-field enhanced h-48" value={data.agreementTerms || ''} onChange={(e) => updateField('agreementTerms', e.target.value)} />
+                                        </div>
+
+                                        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                                            <strong>Disclaimer:</strong> This is a generic template generator. It does not constitute legal advice. Please consult a qualified attorney for legal matters.
+                                        </div>
+                                    </section>
+                                </div>
+                            )
+                        }
+                    </div >
 
                     <div className="p-6 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-white sticky bottom-0 z-10">
                         <button
@@ -724,8 +1003,8 @@ export const EditPage: React.FC = () => {
                             )}
                         </button>
                     </div>
-                </div>
-            </main>
+                </div >
+            </main >
 
             {showSuccessAnimation && (
                 <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -737,6 +1016,6 @@ export const EditPage: React.FC = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </div >
     );
 };

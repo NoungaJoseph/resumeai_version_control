@@ -50,11 +50,13 @@ export const PreviewPage: React.FC = () => {
     };
 
     const handleDownloadClick = () => {
-        // Bypass payment for testing/dev
-        // if (!data.isPaid) {
-        //     setIsPaymentModalOpen(true);
-        //     return;
-        // }
+        // Payment Check
+        /* 
+        if (!data.isPaid) {
+            setIsPaymentModalOpen(true);
+            return;
+        } 
+        */
         setIsDownloadVerificationOpen(true);
     };
 
@@ -150,7 +152,7 @@ export const PreviewPage: React.FC = () => {
             <main ref={containerRef} className="flex-1 w-full overflow-auto bg-slate-100/50">
                 <div className="max-w-full mx-auto p-4 sm:p-8 flex flex-col items-center">
                     {/* Zoom Controls */}
-                    <div className="mb-4 flex items-center gap-2 bg-white rounded-lg shadow-md px-4 py-2 sticky top-4 z-10">
+                    <div className="mb-4 flex items-center gap-2 bg-white rounded-lg shadow-md px-4 py-2 sticky top-4 z-10 print-hidden">
                         <button
                             onClick={handleZoomOut}
                             className="p-2 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
@@ -185,6 +187,7 @@ export const PreviewPage: React.FC = () => {
 
                     {/* Preview with zoom transform */}
                     <div
+                        className="preview-wrapper-print-reset"
                         style={{
                             transform: `scale(${zoom})`,
                             transformOrigin: 'top center',
@@ -210,7 +213,7 @@ export const PreviewPage: React.FC = () => {
             />
 
             {showSuccessAnimation && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+                <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none print-hidden">
                     <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-bounce">
                         <div className="flex items-center gap-2">
                             <CheckIcon className="w-5 h-5" />
@@ -220,16 +223,7 @@ export const PreviewPage: React.FC = () => {
                 </div>
             )}
 
-            <style>{`
-        @media print {
-          nav, .print\\:hidden {
-            display: none !important;
-          }
-          body {
-            background: white;
-          }
-        }
-      `}</style>
+
         </div>
     );
 };

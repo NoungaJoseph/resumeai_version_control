@@ -15,7 +15,7 @@ const { initializeDatabase, getTransaction, updateTransaction } = require('./db'
 const app = express();
 
 // --- CONFIGURATION ---
-const CAMPAY_BASE_URL = process.env.CAMPAY_BASE_URL || 'https://demo.campay.net/api'; 
+const CAMPAY_BASE_URL = process.env.CAMPAY_BASE_URL || 'https://demo.campay.net/api';
 const CAMPAY_APP_USER = process.env.CAMPAY_APP_USER;
 const CAMPAY_APP_PASSWORD = process.env.CAMPAY_APP_PASSWORD;
 
@@ -35,7 +35,7 @@ if (!GEMINI_API_KEY) {
 // Clean up FRONTEND_URL: remove trailing slashes and extra text
 let FRONTEND_URL = process.env.FRONTEND_URL || '*';
 if (FRONTEND_URL && FRONTEND_URL !== '*') {
-  FRONTEND_URL = FRONTEND_URL.trim().replace(/\/$/, '').split(' ')[0]; 
+  FRONTEND_URL = FRONTEND_URL.trim().replace(/\/$/, '').split(' ')[0];
 }
 
 // Enable CORS
@@ -93,23 +93,23 @@ const getAIModel = async () => {
   if (!GEMINI_API_KEY) {
     throw new Error("API Key is missing. Please set GEMINI_API_KEY in Render environment variables.");
   }
-  
+
   // Diagnostic: Log what we are importing to catch version mismatches
   try {
     const genAIModule = await import("@google/genai");
-    
+
     // Check if we have the correct class
     const GoogleGenAI = genAIModule.GoogleGenAI;
-    
+
     if (!GoogleGenAI) {
       console.error("❌ Import Error: @google/genai did not export GoogleGenAI. Exports:", Object.keys(genAIModule));
       throw new Error("Library import failed: GoogleGenAI class not found.");
     }
-    
+
     // console.log("✅ GoogleGenAI class imported successfully.");
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
     return ai;
-    
+
   } catch (e) {
     console.error("❌ Critical Error importing @google/genai:", e);
     throw new Error(`Failed to initialize AI library: ${e.message}`);
@@ -142,7 +142,7 @@ app.post('/api/ai/generate-resume', async (req, res) => {
   console.log("📥 Received request: /api/ai/generate-resume");
   try {
     const { data } = req.body;
-    
+
     const payloadSize = JSON.stringify(data).length;
     console.log(`📊 Payload size: ${(payloadSize / 1024).toFixed(2)} KB`);
 
@@ -150,7 +150,7 @@ app.post('/api/ai/generate-resume', async (req, res) => {
     const isCV = data.mode === 'cv';
     const docType = isCV ? "Curriculum Vitae (CV)" : "Resume";
     const language = data.language === 'fr' ? 'French' : 'English';
-    
+
     // MODEL SELECTION: Enforce standard flash model
     const MODEL_NAME = "gemini-2.5-flash";
 
@@ -236,7 +236,7 @@ app.post('/api/ai/generate-resume', async (req, res) => {
     };
 
     console.log(`🤖 Sending request to Google AI (Model: ${MODEL_NAME})...`);
-    
+
     const response = await generateWithRetry(ai, MODEL_NAME, {
       contents: prompt,
       config: {
@@ -246,11 +246,11 @@ app.post('/api/ai/generate-resume', async (req, res) => {
     });
 
     console.log("✅ AI Generation Successful");
-    
+
     if (!response.text) {
       throw new Error("Empty response received from AI");
     }
-    
+
     const output = JSON.parse(response.text);
     res.json({ success: true, data: output });
 
@@ -259,10 +259,10 @@ app.post('/api/ai/generate-resume', async (req, res) => {
     // Extract useful error info from Google's error object if available
     let errorMessage = error.message || "Internal Server Error";
     if (error.response && error.response.data && error.response.data.error) {
-        console.error("Google API Error Details:", JSON.stringify(error.response.data));
-        errorMessage = error.response.data.error.message || errorMessage;
+      console.error("Google API Error Details:", JSON.stringify(error.response.data));
+      errorMessage = error.response.data.error.message || errorMessage;
     }
-    
+
     res.status(500).json({ success: false, message: errorMessage });
   }
 });
@@ -318,18 +318,76 @@ app.post('/api/ai/generate-cover-letter', async (req, res) => {
         responseSchema: responseSchema,
       },
     });
-    
+
     console.log("✅ AI Cover Letter Successful");
     const output = JSON.parse(response.text);
     res.json({ success: true, data: output });
-    
+
   } catch (error) {
     console.error("❌ AI Cover Letter Error:", error);
     let errorMessage = error.message || "Internal Server Error";
     if (error.response && error.response.data && error.response.data.error) {
-         errorMessage = error.response.data.error.message || errorMessage;
+      errorMessage = error.response.data.error.message || errorMessage;
     }
     res.status(500).json({ success: false, message: errorMessage });
+  }
+});
+
+app.post('/api/ai/enhance-text', async (req, res) => {
+  console.log("📥 Received request: /api/ai/enhance-text");
+  try {
+    // text: the raw text to improve
+    // context: extra info (e.g. "Visa application for France")
+    // type: "formal", "persuasive", "concise"
+    const { text, context, type } = req.body;
+
+    if (!text) throw new Error("No text provided");
+
+    const ai = await getAIModel();
+    const MODEL_NAME = "gemini-2.5-flash";
+
+    const prompt = `
+      You are a professional editor. Rewrite and improve the following text.
+      
+      Original Text: "${text}"
+      
+      Context: ${context || "Professional Document"}
+      Style Goal: ${type || "Formal and Professional"}
+      
+      Instructions:
+      - Correct grammar and spelling.
+      - Improve flow and clarity.
+      - Use professional vocabulary.
+      - Keep the length similar to the original (do not over-expand).
+      
+      Output JSON with a single field 'enhancedText'.
+    `;
+
+    const Type = { STRING: 'STRING', OBJECT: 'OBJECT' };
+    const responseSchema = {
+      type: Type.OBJECT,
+      properties: {
+        enhancedText: { type: Type.STRING }
+      },
+      required: ["enhancedText"],
+    };
+
+    console.log(`🤖 Enhancing text (Model: ${MODEL_NAME})...`);
+
+    const response = await generateWithRetry(ai, MODEL_NAME, {
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+      },
+    });
+
+    const output = JSON.parse(response.text);
+    res.json({ success: true, data: output });
+
+  } catch (error) {
+    console.error("❌ Enhance Text Error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -337,7 +395,7 @@ app.post('/api/ai/generate-cover-letter', async (req, res) => {
 
 app.post('/api/pay', async (req, res) => {
   const { amount, from, description } = req.body;
-  
+
   if (!amount || !from) {
     return res.status(400).json({ success: false, message: "Missing parameters" });
   }
@@ -367,8 +425,8 @@ app.post('/api/pay', async (req, res) => {
       reference: response.data.reference
     });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       reference: response.data.reference,
       message: "Payment initiated. Check your phone."
     });
@@ -387,7 +445,7 @@ app.get('/api/status/:reference', async (req, res) => {
       headers: { 'Authorization': `Token ${token}` }
     });
 
-    const status = response.data.status; 
+    const status = response.data.status;
     res.json({ success: true, status: status });
   } catch (error) {
     console.error("Status Check Error:", error.message);
