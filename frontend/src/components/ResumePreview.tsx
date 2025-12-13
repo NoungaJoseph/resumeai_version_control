@@ -49,8 +49,8 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
 
     // Use user's full name for filename, sanitized
     const safeName = (raw.fullName || 'resume')
-      .replace(/[^a-z0-9\\s]/gi, '')
-      .replace(/\\s+/g, '_')
+      .replace(/[^a-z0-9\s]/gi, '')
+      .replace(/\s+/g, '_')
       .toLowerCase();
 
     const element = containerRef.current;
@@ -71,12 +71,39 @@ const ResumePreview = forwardRef((props: ResumePreviewProps, ref: React.Ref<HTML
     element.style.height = 'auto';
 
     try {
-      // Force download attempt
+      // Check if Web Share API is supported (typical for mobile)
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      if (isMobile && navigator.share) {
+        try {
+          // Generate PDF as Blob
+          const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+          const file = new File([pdfBlob], `${safeName}.pdf`, { type: 'application/pdf' });
+
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'Resume',
+              text: 'Here is my resume.'
+            });
+            return; // Success, exit
+          }
+        } catch (shareErr) {
+          console.warn("Share API failed, falling back to download", shareErr);
+          // If share fails (e.g. user cancelled), we might want to fall back to download or just stop.
+          // Usually if user cancels share, we don't auto-download. 
+          // But if generation failed, it goes to outer catch.
+          // If share API throws (not supported file type etc), we fall back.
+        }
+      }
+
+      // Fallback: Direct download
       await html2pdf().set(opt).from(element).save();
+
     } catch (err) {
       console.error("PDF generation failed", err);
       try {
-        // Fallback
+        // Fallback retry
         await html2pdf().set(opt).from(element).save();
       } catch (e) {
         alert("Failed to generate PDF. Please try again.");
