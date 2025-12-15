@@ -222,26 +222,26 @@ export const EditPage: React.FC = () => {
         <div className="min-h-screen flex flex-col bg-slate-50">
             {/* Navigation */}
             <nav className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3 cursor-pointer group shrink-0" onClick={() => navigate('/')}>
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white transition-all duration-300 group-hover:scale-110" style={{ backgroundColor: data.themeColor }}>
                             <SparklesIcon className="w-5 h-5" />
                         </div>
-                        <span className="font-bold text-xl text-slate-800 group-hover:text-slate-600 transition-colors">ResumeAI</span>
+                        <span className="font-bold text-lg sm:text-xl text-slate-800 group-hover:text-slate-600 transition-colors hidden xs:block">ResumeAI</span>
                     </div>
 
-                    {/* Center: Mode Switcher */}
-                    <div className="flex items-center mx-2 sm:mx-8">
+                    {/* Center: Mode Switcher - Flexible Width */}
+                    <div className="flex-1 max-w-xs mx-2 sm:mx-8">
                         <select
                             value={data.mode}
                             onChange={(e) => switchMode(e.target.value as any)}
-                            className="px-4 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-slate-100 transition-all cursor-pointer"
+                            className="w-full px-2 sm:px-4 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-slate-100 transition-all cursor-pointer truncate"
                         >
                             <option value="resume">{t.resume}</option>
                             <option value="cv">{t.cv}</option>
                             <option value="cover-letter">{t.coverLetter}</option>
                             <option value="motivation-letter">Motivation Letter</option>
-                            <option value="internship-letter">Internship Application</option>
+                            <option value="internship-letter">Internship App</option>
                             <option value="visa-letter">Visa Cover Letter</option>
                             <option value="business-plan">Business Plan</option>
                             <option value="legal-agreement">Legal Template</option>
@@ -249,17 +249,10 @@ export const EditPage: React.FC = () => {
                     </div>
 
                     {/* Right: Actions */}
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={loadSampleData}
-                            className="text-xs text-slate-500 hover:text-slate-700 underline px-2"
-                            title="Load Sample Data for Testing"
-                        >
-                            Load Sample
-                        </button>
+                    <div className="flex items-center shrink-0">
                         <button
                             onClick={() => navigate('/preview')}
-                            className="bg-slate-900 hover:bg-slate-800 text-white px-4 sm:px-6 py-2 rounded-lg font-medium transition-all flex items-center gap-2 shadow-lg shadow-slate-900/20"
+                            className="bg-slate-900 hover:bg-slate-800 text-white px-3 sm:px-6 py-2 rounded-lg font-medium transition-all flex items-center gap-2 shadow-lg shadow-slate-900/20 text-sm"
                         >
                             <span>{t.preview}</span>
                             <span className="hidden sm:inline">→</span>

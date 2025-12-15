@@ -52,12 +52,10 @@ export const PreviewPage: React.FC = () => {
 
     const handleDownloadClick = () => {
         // Payment Check
-        /* 
         if (!data.isPaid) {
             setIsPaymentModalOpen(true);
             return;
-        } 
-        */
+        }
         setIsDownloadVerificationOpen(true);
     };
 
