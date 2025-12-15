@@ -489,7 +489,7 @@ export const EditPage: React.FC = () => {
                                                 <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                                                     <section>
                                                         <label className="block text-sm font-semibold text-slate-700 mb-3"></label>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        <div className="grid grid-cols-2 gap-3">
                                                             <button
                                                                 onClick={() => updateField('template', 'cv-professional')}
                                                                 className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-professional'
