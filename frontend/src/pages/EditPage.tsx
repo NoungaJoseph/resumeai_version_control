@@ -400,9 +400,9 @@ export const EditPage: React.FC = () => {
                                         <label className="block text-sm font-semibold text-slate-700 mb-3">
                                             {data.mode === 'cv' ? 'CV Template' : 'Resume Layout'}
                                         </label>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div>
                                             {data.mode === 'resume' ? (
-                                                <>
+                                                <div className="grid grid-cols-2 gap-3">
                                                     <button
                                                         onClick={() => updateField('template', 'classic')}
                                                         className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'classic'
@@ -484,7 +484,7 @@ export const EditPage: React.FC = () => {
                                                     >
                                                         Entry Level
                                                     </button>
-                                                </>
+                                                </div>
                                             ) : data.mode === 'cv' ? (
                                                 <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                                                     <section>
