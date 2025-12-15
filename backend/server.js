@@ -393,11 +393,31 @@ app.post('/api/ai/enhance-text', async (req, res) => {
 
 // --- PAYMENT ENDPOINTS ---
 
+// --- PRICING CONFIGURATION ---
+const PRICING = {
+  PREMIUM: 1000,
+  STANDARD: 300
+};
+
+const PREMIUM_MODES = ['business-plan', 'visa-letter', 'legal-agreement'];
+
 app.post('/api/pay', async (req, res) => {
-  const { amount, from, description } = req.body;
+  const { amount, from, description, mode } = req.body;
 
   if (!amount || !from) {
     return res.status(400).json({ success: false, message: "Missing parameters" });
+  }
+
+  // PRICING VALIDATION
+  let expectedAmount = PRICING.STANDARD;
+  if (mode && PREMIUM_MODES.includes(mode)) {
+    expectedAmount = PRICING.PREMIUM;
+  }
+
+  // Allow a small buffer or strict check? Strict check is better.
+  // Converting to number for comparison
+  if (Number(amount) < expectedAmount) {
+    return res.status(400).json({ success: false, message: `Invalid amount. Expected ${expectedAmount} for ${mode || 'standard'} document.` });
   }
 
   try {

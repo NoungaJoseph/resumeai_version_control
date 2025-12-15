@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SparklesIcon, PlusIcon, TrashIcon, CheckIcon } from '../components/Icons';
 import { useResume } from '../context/ResumeContext';
@@ -13,10 +13,23 @@ export const EditPage: React.FC = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [enhancingField, setEnhancingField] = useState<string | null>(null);
     const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+    const [countdown, setCountdown] = useState<number>(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const t = UI;
 
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (countdown > 0) {
+            timer = setInterval(() => {
+                setCountdown(prev => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(timer);
+    }, [countdown]);
+
     const handleAiGenerate = async () => {
+        if (countdown > 0) return;
+
         if (!data.targetRole) {
             alert("Please select a target role/niche first.");
             return;
@@ -37,7 +50,7 @@ export const EditPage: React.FC = () => {
                 navigate('/preview');
             }, 2000);
         } catch (error) {
-            alert("Failed to generate. Please ensure your API key is valid and try again.");
+            setCountdown(50);
         } finally {
             setIsGenerating(false);
         }
@@ -476,7 +489,7 @@ export const EditPage: React.FC = () => {
                                                 <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                                                     <section>
                                                         <label className="block text-sm font-semibold text-slate-700 mb-3"></label>
-                                                        <div className="grid grid-cols-1 gap-3">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                             <button
                                                                 onClick={() => updateField('template', 'cv-professional')}
                                                                 className={`p-4 rounded-xl border-2 text-sm font-semibold transition-all ${data.template === 'cv-professional'
@@ -979,9 +992,9 @@ export const EditPage: React.FC = () => {
                     <div className="p-6 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-white sticky bottom-0 z-10">
                         <button
                             onClick={handleAiGenerate}
-                            disabled={isGenerating || !data.targetRole}
-                            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] ${isGenerating
-                                ? 'bg-blue-400 cursor-wait'
+                            disabled={isGenerating || !data.targetRole || countdown > 0}
+                            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] ${isGenerating || countdown > 0
+                                ? 'bg-slate-400 cursor-wait'
                                 : !data.targetRole
                                     ? 'bg-slate-300 cursor-not-allowed'
                                     : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-xl'
@@ -995,6 +1008,8 @@ export const EditPage: React.FC = () => {
                                     </svg>
                                     {data.mode === 'cover-letter' ? t.generating : t.polishing}
                                 </>
+                            ) : countdown > 0 ? (
+                                <span>Generation failed. Retry in {countdown}s</span>
                             ) : (
                                 <>
                                     <SparklesIcon className="w-5 h-5" />

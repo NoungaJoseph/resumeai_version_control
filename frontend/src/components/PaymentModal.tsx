@@ -6,12 +6,13 @@ interface PaymentModalProps {
   onClose: () => void;
   onSuccess: () => void;
   amountXAF: number;
+  mode: string;
 }
 
 // Get the backend URL from environment variables, or default to localhost for development
 const BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:3001';
 
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, amountXAF }) => {
+export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, amountXAF, mode }) => {
   const [step, setStep] = useState<'select' | 'phone' | 'processing' | 'success'>('select');
   const [paymentMethod, setPaymentMethod] = useState<'momo' | 'orange' | 'card' | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -53,9 +54,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: '10', // Test amount as requested
+          amount: String(amountXAF),
           from: formattedPhone,
-          description: "Resume Builder Download"
+          description: `Download ${mode}`,
+          mode: mode
         })
       });
 
@@ -129,7 +131,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               <div className="text-center mb-6">
                 <p className="text-slate-600">Total Amount</p>
                 <p className="text-4xl font-bold text-slate-900">{amountXAF} XAF</p>
-                <p className="text-xs text-slate-400 mt-1">(300 FCFA)</p>
+                <p className="text-xs text-slate-400 mt-1">({amountXAF} FCFA)</p>
               </div>
 
               <div className="space-y-3">

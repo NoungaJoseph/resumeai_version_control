@@ -6,6 +6,7 @@ import ResumePreview from '../components/ResumePreview';
 import { PaymentModal } from '../components/PaymentModal';
 import { DownloadVerificationModal } from '../components/DownloadVerificationModal';
 import { UI } from '../constants';
+import { getDocumentPrice } from '../utils';
 
 export const PreviewPage: React.FC = () => {
     const navigate = useNavigate();
@@ -203,7 +204,8 @@ export const PreviewPage: React.FC = () => {
                 isOpen={isPaymentModalOpen}
                 onClose={() => setIsPaymentModalOpen(false)}
                 onSuccess={handlePaymentSuccess}
-                amountXAF={300}
+                amountXAF={getDocumentPrice(data.mode)}
+                mode={data.mode}
             />
 
             <DownloadVerificationModal
