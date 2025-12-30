@@ -7,6 +7,7 @@ import { PaymentModal } from '../components/PaymentModal';
 import { DownloadVerificationModal } from '../components/DownloadVerificationModal';
 import { UI } from '../constants';
 import { getDocumentPrice } from '../utils';
+import { Logo } from '../components/Logo';
 
 export const PreviewPage: React.FC = () => {
     const navigate = useNavigate();
@@ -51,11 +52,13 @@ export const PreviewPage: React.FC = () => {
     };
 
     const handleDownloadClick = () => {
-        // Payment Check
+        // Payment Check Bypass for Testing
+        /*
         if (!data.isPaid) {
             setIsPaymentModalOpen(true);
             return;
         }
+        */
         setIsDownloadVerificationOpen(true);
     };
 
@@ -111,12 +114,10 @@ export const PreviewPage: React.FC = () => {
             {/* Navigation */}
             <nav className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 shadow-sm flex-none">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white transition-all duration-300 group-hover:scale-110" style={{ backgroundColor: data.themeColor }}>
-                            <SparklesIcon className="w-5 h-5" />
-                        </div>
-                        <span className="font-bold text-xl text-slate-800 group-hover:text-slate-600 transition-colors">ResumeAI</span>
-                    </div>
+                    <Logo
+                        className="cursor-pointer"
+                        onClick={() => navigate('/')}
+                    />
 
                     <div className="flex items-center gap-3">
                         <button

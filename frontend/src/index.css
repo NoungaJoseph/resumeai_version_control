@@ -6,11 +6,17 @@
 
 /* Custom CSS Variables for Theming */
 :root {
-  --primary-blue: #3b82f6;
+  --primary-blue: #1a73e8;
   --primary-purple: #8b5cf6;
   --primary-teal: #06b6d4;
   --accent-slate: #64748b;
   --bg-slate: #f8fafc;
+  --dashboard-blue: #2c4bff;
+  --dashboard-navy: #0e141e;
+  --sidebar-active: #e8f0fe;
+  --sidebar-hover: #f1f3f4;
+  --text-main: #1a1c1e;
+  --text-secondary: #5f6368;
 }
 
 /* Base Styles */
@@ -288,10 +294,220 @@ body {
   .preview-container-shadow {
     box-shadow: none !important;
     border: none !important;
+    transform: none !important;
     margin: 0 !important;
     width: 100% !important;
     max-width: none !important;
     padding: 0 !important;
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Animation Classes */
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-custom {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.8s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.8s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.8s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.5s ease-out forwards;
+}
+
+/* Utility Classes */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Input Field Styles */
+.input-field {
+  @apply w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+}
+
+.input-field.enhanced {
+  @apply hover:border-slate-400 shadow-sm;
+}
+
+/* Page Break Utilities & Print Support */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body {
+    background-color: white;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Hide UI elements */
+  nav,
+  button,
+  .no-print,
+  .print-hidden {
+    display: none !important;
+  }
+
+  /* Reset various layout constraints for print */
+  #root,
+  main {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  /* Target the specific preview wrapper */
+  .preview-wrapper-print-reset {
+    transform: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Remove shadows and borders from resume container */
+  .preview-container-shadow {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  img {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
 
@@ -311,7 +527,153 @@ body {
   page-break-before: always;
 }
 
+/* Dashboard Specific Utilities */
+.dashboard-card {
+  @apply bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300;
+}
+
+.dashboard-sidebar-item {
+  @apply flex items-center px-4 py-2.5 my-1 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer;
+}
+
+.dashboard-sidebar-item.active {
+  @apply bg-[#e8f0fe] text-[#2c4bff];
+}
+
+.dashboard-sidebar-item:not(.active) {
+  @apply text-[#5f6368] hover:bg-[#f8f9fa] hover:text-[#1a1c1e];
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Animation Classes */
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-custom {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.8s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.8s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.8s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.5s ease-out forwards;
+}
+
+/* Utility Classes */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Input Field Styles */
+.input-field {
+  @apply w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+}
+
+.input-field.enhanced {
+  @apply hover:border-slate-400 shadow-sm;
+}
+
+/* Page Break Utilities & Print Support */
 @media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body {
+    background-color: white;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Hide UI elements */
+  nav,
+  button,
+  .no-print,
+  .print-hidden {
+    display: none !important;
+  }
+
+  /* Reset various layout constraints for print */
+  #root,
+  main {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  /* Target the specific preview wrapper */
+  .preview-wrapper-print-reset {
+    transform: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Remove shadows and borders from resume container */
+  .preview-container-shadow {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
 
   h1,
   h2,
@@ -327,4 +689,99 @@ body {
     break-inside: avoid;
     page-break-inside: avoid;
   }
+}
+
+.page-break-avoid {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.page-break-after-avoid {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+
+.page-break-before {
+  break-before: page;
+  page-break-before: always;
+}
+
+/* Dashboard Specific Utilities */
+.dashboard-card {
+  @apply bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300;
+}
+
+.dashboard-sidebar-item {
+  @apply flex items-center px-4 py-2.5 my-1 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer;
+}
+
+.dashboard-sidebar-item.active {
+  @apply bg-[#e8f0fe] text-[#2c4bff];
+}
+
+.dashboard-sidebar-item:not(.active) {
+  @apply text-[#5f6368] hover:bg-[#f8f9fa] hover:text-[#1a1c1e];
+}
+
+.dashboard-container {
+  min-height: 100vh;
+  position: relative;
+}
+
+.dashboard-main {
+  width: 100%;
+  min-height: 100vh;
+  transition: padding-left 0.3s ease;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-main {
+    padding-left: 260px;
+  }
+}
+
+/* Banner Styles */
+.expert-banner {
+  @apply relative overflow-hidden rounded-3xl bg-[#f0f7ff] border border-blue-100 p-8 sm:p-10 mb-10 transition-all hover:shadow-lg;
+}
+
+.expert-banner::after {
+  content: '';
+  @apply absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-blue-100/50 to-transparent pointer-events-none;
+}
+
+/* AI Coach Bubble */
+.ai-coach-bubble {
+  @apply fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl rounded-full px-6 py-4 flex items-center space-x-4 border border-blue-50 max-w-[90vw] w-[600px] transition-all hover:scale-[1.02];
+}
+
+.ai-coach-glow {
+  @apply absolute inset-0 rounded-full blur-xl bg-gradient-to-r from-blue-400/20 to-purple-400/20 -z-10;
+}
+
+/* Document Score Circle */
+.score-circle {
+  @apply relative w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-sm font-bold text-xs;
+}
+
+.score-progress {
+  @apply absolute inset-0;
+}
+
+/* Course Card */
+.course-card {
+  @apply min-w-[280px] bg-white rounded-2xl border border-slate-100 p-4 transition-all hover:shadow-lg hover:border-blue-200 cursor-pointer;
+}
+
+.course-thumb {
+  @apply w-full h-32 rounded-xl bg-slate-50 mb-4 overflow-hidden relative;
+}
+
+.progress-bar-wrapper {
+  @apply h-1.5 w-full bg-slate-100 rounded-full overflow-hidden;
+}
+
+.progress-bar-fill {
+  @apply h-full bg-[#2c4bff] transition-all duration-1000 ease-out;
 }

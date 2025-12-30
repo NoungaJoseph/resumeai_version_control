@@ -4,10 +4,25 @@ export interface ExperienceItem {
   company: string;
   role: string;
   dates: string;
-  startDate?: string; // YYYY-MM format
-  endDate?: string;   // YYYY-MM format
+  startDate?: string;
+  endDate?: string;
   isCurrent?: boolean;
-  description: string; // Rough notes input by user
+  description: string;
+  bullets?: string[]; // To handle both AI and user input
+}
+
+export interface AchievementItem {
+  id: string;
+  title: string;
+  date?: string;
+  description?: string;
+}
+
+export interface CertificationItem {
+  id: string;
+  name: string;
+  issuer?: string;
+  date?: string;
 }
 
 export interface EducationItem {
@@ -15,62 +30,62 @@ export interface EducationItem {
   school: string;
   degree: string;
   dates: string;
-  startDate?: string; // YYYY-MM format
-  endDate?: string;   // YYYY-MM format
+  startDate?: string;
+  endDate?: string;
   isCurrent?: boolean;
+  description?: string;
 }
 
 export interface ProjectItem {
   id: string;
   name: string;
   link?: string;
-  dates: string; // e.g. "2020-2021"
+  dates: string;
   startDate?: string;
   endDate?: string;
   isCurrent?: boolean;
   description: string;
+  bullets?: string[];
 }
 
 export interface ResumeData {
-  language: 'en' | 'fr'; // New field for bilingual support
+  language: 'en' | 'fr';
   mode: 'resume' | 'cv' | 'cover-letter' | 'motivation-letter' | 'internship-letter' | 'visa-letter' | 'business-plan' | 'legal-agreement';
   template:
-  // Resume Templates
   | 'modern' | 'classic' | 'sidebar' | 'minimalist'
   | 'resume-ats' | 'resume-executive' | 'resume-creative' | 'resume-technical' | 'resume-entry'
-  // CV Templates  
   | 'cv-academic' | 'cv-executive' | 'cv-corporate' | 'cv-professional' | 'cv-classic'
   | 'cv-research' | 'cv-medical' | 'cv-faculty' | 'cv-scientific' | 'cv-international'
-  // Legal Templates
-  | 'legal-lease' | 'legal-partnership' | 'legal-sale';
-  themeColor: string; // Hex code
+  | 'legal-lease' | 'legal-partnership' | 'legal-sale'
+  | 'business-modern' | 'visa-official'; // New templates
+  themeColor: string;
   fullName: string;
   email: string;
   phone: string;
   location: string;
   linkedin: string;
   website: string;
-  photo?: string; // Base64 image string
-  targetRole: string; // e.g., "Software Engineer"
-  summary: string; // Auto-generated or user input
+  photo?: string;
+  targetRole: string;
+  summary: string;
   experience: ExperienceItem[];
   internships: ExperienceItem[];
   volunteering: ExperienceItem[];
   education: EducationItem[];
   projects: ProjectItem[];
-  skills: string; // Comma separated string for input
+  skills: string;
   languages?: string;
-  achievements: string;
+  achievements: AchievementItem[]; // Restructured
   publications: string;
-  certifications: string;
+  certifications: CertificationItem[]; // Restructured
 
   // Cover Letter Specifics
   recipientName?: string;
-  recipientRole?: string; // e.g. Hiring Manager
+  recipientRole?: string;
   companyName?: string;
   companyAddress?: string;
-  jobDescription?: string; // The JD to tailor the letter to
-  coverLetterBody?: string; // The generated HTML/Text content
+  jobDescription?: string;
+  coverLetterBody?: string;
 
   // Motivation Letter Specifics
   organizationName?: string;
@@ -79,8 +94,8 @@ export interface ResumeData {
 
   // Internship Specifics
   schoolName?: string;
-  program?: string; // Field of study
-  educationLevel?: string; // BTS, HND, etc.
+  program?: string;
+  educationLevel?: string;
   internshipStartDate?: string;
   internshipEndDate?: string;
   supervisorName?: string;
@@ -101,7 +116,7 @@ export interface ResumeData {
   sponsorDetails?: string;
   accommodationDetails?: string;
   returnAssurance?: string;
-  supportingDocuments?: string; // Comma separated
+  supportingDocuments?: string;
 
   // Business Plan Specifics
   businessName?: string;
@@ -123,8 +138,14 @@ export interface ResumeData {
   legalPartyA?: string;
   legalPartyB?: string;
   agreementDate?: string;
-  agreementTerms?: string; // Specific clauses
-  financialValue?: string; // Rent amount, sale price, etc.
+  agreementTerms?: string;
+  financialValue?: string;
+
+  // Customization
+  fontFamily?: string;
+  fontSize?: 'small' | 'medium' | 'large';
+  margins?: 'narrow' | 'balanced' | 'wide';
+  sectionSpacing?: 'compact' | 'standard' | 'relaxed';
 
   // Payment State
   isPaid: boolean;
@@ -135,7 +156,6 @@ export interface ResumeData {
   hasDownloaded?: boolean;
 }
 
-// The structure expected back from the AI
 export interface AIResumeOutput {
   summary: string;
   skills: string[];
@@ -164,17 +184,16 @@ export interface AIResumeOutput {
     dates: string;
     bullets: string[];
   }[];
-  achievements: string[];
+  achievements: { title: string; date?: string; description?: string }[];
   publications: string[];
-  certifications: string[];
+  certifications: { name: string; issuer?: string; date?: string }[];
 }
 
-// Structure for Cover Letter AI response
 export interface AICoverLetterOutput {
   subject: string;
   salutation: string;
-  opening: string; // The hook
-  bodyParagraphs: string[]; // The argument/proof
-  closing: string; // Call to action
+  opening: string;
+  bodyParagraphs: string[];
+  closing: string;
   signOff: string;
 }

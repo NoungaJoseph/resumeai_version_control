@@ -12,7 +12,7 @@ type ViewState = 'home' | 'pricing' | 'about' | 'contact' | 'privacy' | 'terms';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const onStart = () => navigate('/edit');
+  const onStart = () => navigate('/select-type');
   const [view, setView] = useState<ViewState>('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -467,12 +467,12 @@ export const LandingPage: React.FC = () => {
                 }
               }}>
                 {[
-                  { name: "Modern", desc: "Clean, 2-column layout", img: "/1.jpg" },
-                  { name: "Classic", desc: "Traditional, top-down", img: "/2.jpg" },
-                  { name: "Sidebar", desc: "High-contrast layout", img: "/3.jpg" },
-                  { name: "Minimalist", desc: "Elegant whitespace", img: "/4.jpg" },
-                  { name: "Corporate", desc: "High-end executive", img: "/5.jpg" },
-                  { name: "Academic", desc: "Research focused", img: "/6.jpg" }
+                  { name: "Modern", desc: "Clean, 2-column layout", key: "modern", img: "/photos_resume/modern.jpeg" },
+                  { name: "Classic", desc: "Traditional, top-down", key: "classic", img: "/photos_resume/resume_clasic.jpeg" },
+                  { name: "Sidebar", desc: "High-contrast layout", key: "sidebar", img: "/photos_resume/sidebar.jpeg" },
+                  { name: "ATS Optimized", desc: "System-friendly format", key: "resume-ats", img: "/photos_resume/ats optimized.jpeg" },
+                  { name: "Executive", desc: "High-end leadership", key: "resume-executive", img: "/photos_resume/executive.jpeg" },
+                  { name: "Academic", desc: "Research focused", key: "cv-academic", img: "/photos_cv/research.jpeg" }
                 ].map((tpl, idx) => (
                   <SplideSlide key={idx}>
                     <div className="bg-white rounded-2xl p-6 mx-2 hover-lift transition-all h-full flex flex-col border border-slate-100">
@@ -489,7 +489,7 @@ export const LandingPage: React.FC = () => {
                       </div>
                       <h3 className="text-xl font-semibold mb-2 text-charcoal">{tpl.name}</h3>
                       <p className="text-gray-600 mb-4 flex-1 text-sm">{tpl.desc}</p>
-                      <button onClick={onStart} className="w-full bg-navy text-white py-2.5 rounded-lg hover:bg-navy/90 font-medium transition-colors">Use Template</button>
+                      <button onClick={() => navigate(`/select-template?type=${tpl.key.startsWith('cv') ? 'cv' : 'resume'}&template=${tpl.key}`)} className="w-full bg-navy text-white py-2.5 rounded-lg hover:bg-navy/90 font-medium transition-colors">Use Template</button>
                     </div>
                   </SplideSlide>
                 ))}
@@ -561,7 +561,7 @@ export const LandingPage: React.FC = () => {
                   { q: "Can I edit my resume after downloading?", a: "Yes! You can continue editing your resume in our builder even after downloading. However, each new download will require a separate payment of 300 FCFA." },
                   { q: "Do you offer refunds?", a: "Yes, we offer a 100% satisfaction guarantee. If you're not happy with the quality of your resume, contact us within 7 days of purchase for a full refund." },
                   { q: "Are the templates ATS-friendly?", a: "Absolutely! All our templates are designed to be compatible with Applicant Tracking Systems (ATS). They use standard fonts, proper formatting, and avoid elements that could confuse ATS software." },
-                  { q: "Can I use ResumeAI Builder on my phone?", a: "Yes! ResumeAI Builder is fully responsive and works great on mobile devices, tablets, and desktop computers. You can create and edit your resume anywhere, anytime." }
+                  { q: "Can I use Resume Builder on my phone?", a: "Yes! Resume Builder is fully responsive and works great on mobile devices, tablets, and desktop computers. You can create and edit your resume anywhere, anytime." }
                 ].map((faq, i) => (
                   <div key={i} className="bg-white/5 p-6 rounded-xl border border-white/10">
                     <h3 className="font-bold text-teal mb-2">{faq.q}</h3>
@@ -596,7 +596,7 @@ export const LandingPage: React.FC = () => {
                   Our <span className="landing-gradient-text">Story</span>
                 </h1>
                 <p className="text-lg text-gray-300 mb-6 leading-relaxed">
-                  ResumeAI Builder was founded in 2025 with a bold vision: to bridge the gap between talent and opportunity in Africa and beyond. We observed that countless skilled professionals were missing out on life-changing career opportunities simply because their resumes didn't effectively communicate their true value.
+                  Resume Builder was founded in 2025 with a bold vision: to bridge the gap between talent and opportunity in Africa and beyond. We observed that countless skilled professionals were missing out on life-changing career opportunities simply because their resumes didn't effectively communicate their true value.
                 </p>
                 <p className="text-lg text-gray-300 mb-6 leading-relaxed">
                   Our team combined deep expertise in Human Resources with cutting-edge Artificial Intelligence (Google Gemini) to create a platform that doesn't just format text—it elevates careers. We are committed to providing accessible, high-quality tools that empower every individual to tell their professional story with confidence and precision.
@@ -649,7 +649,7 @@ export const LandingPage: React.FC = () => {
             <h1 className="text-4xl font-display font-bold mb-8">Privacy Policy</h1>
             <div className="space-y-6 text-gray-300 leading-relaxed">
               <p>Last updated: November 28, 2025</p>
-              <p>At ResumeAI Builder, we take your privacy seriously. This Privacy Policy explains how we collect, use, and protect your personal information.</p>
+              <p>At Resume Builder, we take your privacy seriously. This Privacy Policy explains how we collect, use, and protect your personal information.</p>
 
               <h2 className="text-2xl font-bold text-white mt-8 mb-4">1. Information We Collect</h2>
               <p>We collect information that you provide directly to us, including:</p>
@@ -806,12 +806,12 @@ export const LandingPage: React.FC = () => {
               <p className="text-gray-400 text-center mb-8">Quick answers to common questions</p>
               <div className="grid md:grid-cols-2 gap-6">
                 {[
-                  { q: "How much does ResumeAI Builder cost?", a: "ResumeAI Builder costs 500 FCFA per download. You only pay when you're satisfied with your resume and ready to download it. There are no subscription fees or hidden costs." },
+                  { q: "How much does Resume Builder cost?", a: "Resume Builder costs 500 FCFA per download. You only pay when you're satisfied with your resume and ready to download it. There are no subscription fees or hidden costs." },
                   { q: "Can I edit my resume after downloading?", a: "Yes, you can continue editing your resume in our builder even after downloading. However, each new download will require a separate payment of 500 FCFA." },
                   { q: "What payment methods do you accept?", a: "We accept mobile money payments (MTN Mobile Money, Orange Money), credit/debit cards, and PayPal. All payments are processed securely through our trusted payment partners." },
-                  { q: "Is my data safe with ResumeAI Builder?", a: "Absolutely! We use client-side processing, which means your data never leaves your device. We don't store your personal information or resume content on our servers." },
+                  { q: "Is my data safe with Resume Builder?", a: "Absolutely! We use client-side processing, which means your data never leaves your device. We don't store your personal information or resume content on our servers." },
                   { q: "Do you offer refunds?", a: "Yes, we offer a 100% satisfaction guarantee. If you're not happy with the quality of your resume, contact us within 7 days of purchase for a full refund." },
-                  { q: "Can I use ResumeAI Builder on my phone?", a: "Yes! ResumeAI Builder is fully responsive and works great on mobile devices, tablets, and desktop computers. You can create and edit your resume anywhere, anytime." }
+                  { q: "Can I use Resume Builder on my phone?", a: "Yes! Resume Builder is fully responsive and works great on mobile devices, tablets, and desktop computers. You can create and edit your resume anywhere, anytime." }
                 ].map((faq, i) => (
                   <div key={i} className="bg-white/5 p-6 rounded-xl border border-white/10">
                     <h3 className="font-bold text-teal mb-2">{faq.q}</h3>
@@ -847,7 +847,7 @@ export const LandingPage: React.FC = () => {
             <button onClick={() => { setView('terms'); window.scrollTo(0, 0); }} className="hover:text-teal">Terms of Service</button>
             <button onClick={() => { setView('contact'); window.scrollTo(0, 0); }} className="hover:text-teal">Contact</button>
           </div>
-          <p className="text-gray-500 text-xs">© 2025 ResumeAI Builder. All rights reserved. Powered by Google's Gemini AI.</p>
+          <p className="text-gray-500 text-xs">© 2025 Resume Builder. All rights reserved. Powered by Google's Gemini AI.</p>
         </div>
       </footer>
     </div>

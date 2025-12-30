@@ -43,13 +43,17 @@ const initialResumeData: ResumeData = {
     education: [],
     skills: '',
     projects: [],
-    certifications: '',
+    certifications: [],
     languages: '',
-    achievements: '',
+    achievements: [],
     publications: '',
     template: 'modern',
     themeColor: '#3b82f6',
-    isPaid: false,
+    fontFamily: 'Inter',
+    fontSize: 'medium',
+    margins: 'balanced',
+    sectionSpacing: 'standard',
+    isPaid: true,
     hasDownloaded: false
 };
 
@@ -57,7 +61,38 @@ export const ResumeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Load from local storage if available
     const [data, setData] = useState<ResumeData>(() => {
         const saved = localStorage.getItem('resumeData');
-        return saved ? JSON.parse(saved) : initialResumeData;
+        if (!saved) return initialResumeData;
+
+        try {
+            const parsed = JSON.parse(saved);
+
+            // --- DATA MIGRATION LAYER ---
+            // If achievements is a string (stale data), convert to array
+            if (parsed.achievements && typeof parsed.achievements === 'string') {
+                parsed.achievements = [{ id: 'migrated-1', title: parsed.achievements, description: '' }];
+            }
+            // If certifications is a string (stale data), convert to array
+            if (parsed.certifications && typeof parsed.certifications === 'string') {
+                parsed.certifications = [{ id: 'migrated-1', name: parsed.certifications, issuer: '' }];
+            }
+
+            // Fallback for missing fields or type mismatches
+            return {
+                ...initialResumeData,
+                ...parsed,
+                // Ensure arrays are actually arrays
+                achievements: Array.isArray(parsed.achievements) ? parsed.achievements : [],
+                certifications: Array.isArray(parsed.certifications) ? parsed.certifications : [],
+                experience: Array.isArray(parsed.experience) ? parsed.experience : [],
+                education: Array.isArray(parsed.education) ? parsed.education : [],
+                projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+                internships: Array.isArray(parsed.internships) ? parsed.internships : [],
+                volunteering: Array.isArray(parsed.volunteering) ? parsed.volunteering : []
+            };
+        } catch (e) {
+            console.error("Failed to parse resumeData from localStorage", e);
+            return initialResumeData;
+        }
     });
 
     const [aiOutput, setAiOutput] = useState<AIResumeOutput | null>(null);
@@ -89,7 +124,7 @@ export const ResumeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const resetPaymentStatus = () => {
         setData(prev => ({
             ...prev,
-            isPaid: false,
+            isPaid: true,
             hasDownloaded: true
         }));
     };

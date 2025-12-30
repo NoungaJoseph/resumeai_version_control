@@ -102,3 +102,24 @@ export const MagicResumeIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) 
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 2l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" />
   </svg>
 );
+
+export const PaletteIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-3" />
+    <circle cx="10" cy="8" r="1" fill="currentColor" />
+    <circle cx="7" cy="11" r="1" fill="currentColor" />
+    <circle cx="13" cy="11" r="1" fill="currentColor" />
+  </svg>
+);
+
+export const LayoutIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+  </svg>
+);
+
+export const TypeIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7V4h16v3M9 20h6M12 4v16" />
+  </svg>
+);
